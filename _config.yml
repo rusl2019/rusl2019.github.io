@@ -1,0 +1,24 @@
+# Site settings
+title: Ruslan Website
+description: Ruslan Minimal Resume
+# baseurl: "" # the subpath of your site, e.g. /blog
+# url: "localhost:3000" # the base hostname & protocol for your site e.g. http://willianjusten.com.br
+
+# User settings
+username: Ruslan
+user_description:
+  I am a Fresh graduate majoring in chemistry at the Faculty of Mathematics and Natural Sciences,
+  Brawijaya University. I joined the Physical Chemistry Laboratory and Computational Chemistry
+  Laboratory in Brawijaya University. My research is more about how the behavior of guest molecules
+  in filled ice or clathrate hydrates.In my free time, I enjoy programming, web design, watching
+  movies, watching anime, and playing guitar. Ready to work as Laboratory Analyst, Quality Control,
+  Research and Development. I can work well with others (team work) and individual.
+user_title: Chemist
+email: muhammad.ruslan14@gmail.com
+twitter: NoviantoRuslan
+github: rusl2019
+instagram: rusl201911
+linkedin: muhammad-ruslan-9419b4164
+facebook: wucok
+
+exclude: ["package.json", "src", "node_modules"]
