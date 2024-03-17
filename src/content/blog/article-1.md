@@ -1,14 +1,16 @@
 ---
-author: Muhammad Ruslan
-datetime: 2023-01-28T13:44:58Z
 title: "Molecular Simulation"
-slug: ""
+description: "This article provides an overview of molecular simulation."
+pubDatetime: 2023-01-28T13:44:58Z
+modDatetime:
+author: Muhammad Ruslan Novianto
+slug: "Molecular-Simulation"
 featured: false
 draft: false
 tags:
-  - Computer Simulation
+  - "Computer Simulation"
 ogImage: ""
-description: This article provides an overview of molecular simulation.
+canonicalURL: ""
 ---
 
 Molecular simulation is a powerful tool used to study the behavior of molecules and chemical systems at the atomic and molecular level. By using computer algorithms and models, researchers can simulate the behavior of molecules in various environments, including liquids, gases, and solids.

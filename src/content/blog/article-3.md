@@ -1,15 +1,17 @@
 ---
-author: Muhammad Ruslan
-datetime: 2023-01-29T22:09:18Z
 title: "Molecular Dynamics Simulation"
+description: This article provides an overview of simulation methods (Molecular Dynamics).
+pubDatetime: 2023-01-29T22:09:18Z
+modDatetime:
+author: Muhammad Ruslan Novianto
 slug: "Molecular-Dynamics-Simulation"
 featured: false
 draft: false
 tags:
-  - Computer Simulation
-  - Molecular Dynamics
+  - "Computer Simulation"
+  - "Molecular Dynamics"
 ogImage: ""
-description: This article provides an overview of simulation methods (Molecular Dynamics).
+canonicalURL: ""
 ---
 
 Molecular dynamics (MD) simulation is a powerful computational technique that allows scientists and researchers to study the dynamics and behavior of molecular systems. The method involves the use of mathematical equations to simulate the movement and interactions of atoms and molecules in a system, over time. This allows scientists to gain insights into the behavior of complex chemical and biological systems, and to study the properties of materials at the atomic and molecular level.

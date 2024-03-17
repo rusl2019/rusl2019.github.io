@@ -1,14 +1,20 @@
-import type { SocialObjects } from "./types";
+import type { Site, SocialObjects } from "./types";
 
-export const SITE = {
-  website: "https://rusl2019.github.io/",
-  author: "Muhammad Ruslan",
-  desc: "Chemist?",
-  title: "Chemist?",
+export const SITE: Site = {
+  website: "https://rusl2019.github.io/", // replace this with your deployed domain
+  author: "Muhammad Ruslan Novianto",
+  desc: "all the things that come to mind.",
+  title: "化学者？",
   ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
-  postPerPage: 3,
+  postPerPage: 4,
+  scheduledPostMargin: 15 * 60 * 1000, // 15 minutes
 };
+
+export const LOCALE = {
+  lang: "en", // html lang code. Set this empty and default will be "en"
+  langTag: ["en-EN"], // BCP 47 Language Tags. Set this empty [] to use the environment default
+} as const;
 
 export const LOGO_IMAGE = {
   enable: false,
@@ -38,7 +44,7 @@ export const SOCIALS: SocialObjects = [
   },
   {
     name: "LinkedIn",
-    href: "https://github.com/satnaing/astro-paper",
+    href: "https://www.instagram.com/rusl201911",
     linkTitle: `${SITE.title} on LinkedIn`,
     active: false,
   },
@@ -130,6 +136,12 @@ export const SOCIALS: SocialObjects = [
     name: "Telegram",
     href: "https://github.com/satnaing/astro-paper",
     linkTitle: `${SITE.title} on Telegram`,
+    active: false,
+  },
+  {
+    name: "Mastodon",
+    href: "https://github.com/satnaing/astro-paper",
+    linkTitle: `${SITE.title} on Mastodon`,
     active: false,
   },
 ];

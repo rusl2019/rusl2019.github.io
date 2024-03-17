@@ -1,4 +1,5 @@
 ---
+import { getCollection } from "astro:content";
 import Layout from "@layouts/Layout.astro";
 import Header from "@components/Header.astro";
 import Footer from "@components/Footer.astro";
@@ -6,87 +7,73 @@ import LinkButton from "@components/LinkButton.astro";
 import Hr from "@components/Hr.astro";
 import Card from "@components/Card";
 import getSortedPosts from "@utils/getSortedPosts";
-import slugify from "@utils/slugify";
-import type { Frontmatter } from "src/types";
-import Socials from "@components/Socials.astro";
 
-const posts = await Astro.glob<Frontmatter>("../contents/**/*.md");
+const posts = await getCollection("blog");
 
 const sortedPosts = getSortedPosts(posts);
-const featuredPosts = sortedPosts.filter(
-  ({ frontmatter }) => frontmatter.featured
-);
+const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
 ---
 
 <Layout>
   <Header />
+
   <main id="main-content">
-    <section id="hero">
-      <h1>Ruslan</h1>
+    <section id="about" class="prose mb-5 mt-5 max-w-3xl prose-img:border-0">
+      <h2 class="text-2xl tracking-wider sm:text-3xl">
+        Muhammad Ruslan Novianto
+      </h2>
       <p>
-        Hello World! My nickname is rusl2019, but my real name is Ruslan. I am a
-        chemist majoring in computational chemistry, specifically in mechanical
-        classical and mechanical statistic. My area of interest is gas hydrate
-        (ice crystal) and computer simulation methods such as Molecular Dynamics
-        (MD) and Monte Carlo (MC) simulation. In my free time, I enjoy
-        programming computer applications, listening to podcasts, playing games,
-        and playing music.
+        A chemist who focuses on high-quality software that hopes to help people
+        solve their problems.
       </p>
-      <div class="social-wrapper">
-        <div class="social-links">Social Links:</div>
-        <Socials />
-      </div>
+    </section>
+
+    <Hr />
+
+    <section id="about" class="prose mb-5 mt-5 max-w-3xl prose-img:border-0">
+      <h1 class="text-2xl tracking-wider sm:text-3xl">About Me</h1>
+      <p>
+        Hello World! My name is Ruslan. I am a chemist majoring in physical
+        chemistry, specifically in mechanical classical and mechanical
+        statistic. My area of interest is gas hydrate (ice crystal) and computer
+        simulation methods such as Molecular Dynamics (MD) and Monte Carlo (MC)
+        simulation. In my free time, I enjoy programming computer applications,
+        listening to podcasts, playing games, and playing music.
+      </p>
     </section>
 
     <Hr />
 
     {
-      featuredPosts.length > 0 && (
-        <>
-          <section id="featured">
-            <h2>Featured</h2>
-            <ul>
-              {featuredPosts.map(({ frontmatter }) => (
-                <Card
-                  href={`/posts/${slugify(frontmatter)}`}
-                  post={frontmatter}
-                  secHeading={false}
-                />
-              ))}
-            </ul>
-          </section>
-          <Hr />
-        </>
+      recentPosts.length > 0 && (
+        <section id="recent-posts">
+          <h2>Recent Posts</h2>
+          <ul>
+            {recentPosts.map(
+              ({ data, slug }, index) =>
+                index < 4 && (
+                  <Card
+                    href={`/posts/${slug}/`}
+                    frontmatter={data}
+                    secHeading={false}
+                  />
+                )
+            )}
+          </ul>
+        </section>
       )
     }
 
-    <section id="recent-posts">
-      <h2>Recent Posts</h2>
-      <ul>
-        {
-          sortedPosts.map(
-            ({ frontmatter }, index) =>
-              index < 3 && (
-                <Card
-                  href={`/posts/${slugify(frontmatter)}`}
-                  post={frontmatter}
-                  secHeading={false}
-                />
-              )
-          )
-        }
-      </ul>
-      <div class="all-posts-btn-wrapper">
-        <LinkButton href="/posts">
-          All Posts
-          <svg xmlns="http://www.w3.org/2000/svg"
-            ><path
-              d="m11.293 17.293 1.414 1.414L19.414 12l-6.707-6.707-1.414 1.414L15.586 11H6v2h9.586z"
-            ></path>
-          </svg>
-        </LinkButton>
-      </div>
-    </section>
+    <div class="all-posts-btn-wrapper">
+      <LinkButton href="/posts/">
+        All Posts
+        <svg xmlns="http://www.w3.org/2000/svg"
+          ><path
+            d="m11.293 17.293 1.414 1.414L19.414 12l-6.707-6.707-1.414 1.414L15.586 11H6v2h9.586z"
+          ></path>
+        </svg>
+      </LinkButton>
+    </div>
   </main>
 
   <Footer />
@@ -95,37 +82,37 @@ const featuredPosts = sortedPosts.filter(
 <style>
   /* ===== Hero Section ===== */
   #hero {
-    @apply pt-8;
+    @apply pb-6 pt-8;
   }
   #hero h1 {
-    @apply inline-block font-bold my-4 sm:my-8 text-3xl sm:text-5xl;
+    @apply my-4 inline-block text-3xl font-bold sm:my-8 sm:text-5xl;
   }
   #hero .rss-link {
     @apply mb-6;
   }
   #hero .rss-icon {
-    @apply h-6 w-6 scale-110 sm:scale-125 mb-2 sm:mb-3 fill-skin-accent;
+    @apply mb-2 h-6 w-6 scale-110 fill-skin-accent sm:mb-3 sm:scale-125;
   }
   #hero p {
     @apply my-2;
   }
   .social-wrapper {
-    @apply flex flex-col sm:flex-row sm:items-center mt-4 mb-6;
+    @apply mt-4 flex flex-col sm:flex-row sm:items-center;
   }
   .social-links {
-    @apply whitespace-nowrap mr-2 sm:mb-0 mb-1;
+    @apply mb-1 mr-2 whitespace-nowrap sm:mb-0;
   }
 
   /* ===== Featured & Recent Posts Sections ===== */
   #featured,
   #recent-posts {
-    @apply pt-12 pb-6;
+    @apply pb-6 pt-12;
   }
   #featured h2,
   #recent-posts h2 {
-    @apply font-semibold text-2xl tracking-wide;
+    @apply text-2xl font-semibold tracking-wide;
   }
   .all-posts-btn-wrapper {
-    @apply text-center my-8;
+    @apply my-8 text-center;
   }
 </style>

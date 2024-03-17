@@ -1,15 +1,17 @@
 ---
-author: Muhammad Ruslan
-datetime: 2023-01-29T22:05:57Z
 title: "Monte Carlo Simulation"
+description: "This article provides an overview of simulation methods (Monte Carlo)"
+pubDatetime: 2023-01-29T22:05:57Z
+modDatetime:
+author: Muhammad Ruslan Novianto
 slug: "Monte-Carlo-Simulation"
 featured: false
 draft: false
 tags:
-  - Computer Simulation
-  - Monte Carlo
+  - "Computer Simulation"
+  - "Monte Carlo"
 ogImage: ""
-description: This article provides an overview of simulation methods (Monte Carlo).
+canonicalURL: ""
 ---
 
 The Monte Carlo simulation method is a powerful and versatile tool for modeling complex systems in a wide range of fields. It has become increasingly popular in recent years, and is used in physics, chemistry, finance, and computer science, among other fields.
