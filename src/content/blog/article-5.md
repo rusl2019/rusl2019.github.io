@@ -1,4 +1,22 @@
-# Estimasi Titik Leleh
+---
+title: "Estimasi Titik Leleh"
+description: Artikel ini memberikan gambaran umum tentang metode simulasi (Dinamika Molekuler) untuk melakukan estimasi titik leleh air.
+pubDatetime: 2023-08-22T10:00:00Z
+modDatetime:
+author: Muhammad Ruslan Novianto
+slug: "Simulasi-Dinamika-Molekuler-Titik-Leleh-Es"
+featured: false
+draft: false
+tags:
+  - "Simulasi Komputer"
+  - "Dinamika Molekuler"
+  - "Titik Leleh"
+  - "TIP4P/Ice"
+  - "Gromacs"
+  - "GenIce"
+ogImage: ""
+canonicalURL: ""
+---
 
 Kita akan menjelaskan prosedur untuk mengamati proses pertumbuhan kristal es dan pelelehan secara langsung, serta memperkirakan titik leleh es menggunakan simulasi komputer.
 
