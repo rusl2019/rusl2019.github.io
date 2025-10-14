@@ -18,50 +18,102 @@ ogImage: ""
 canonicalURL: ""
 ---
 
-Kita akan menjelaskan prosedur untuk mengamati proses pertumbuhan kristal es dan pelelehan secara langsung, serta memperkirakan titik leleh es menggunakan simulasi komputer.
+# 融点の推定
 
-## 0. Pengaturan Lingkungan
+氷の結晶成長や融解過程をその場観察するとともに、氷の融点を計算機シミュレーションで推定する手順を解説します。
 
-Kita akan melakukan perhitungan di cloud.
+## 0. 環境設定
 
-### 0-0 Tentang dokumen ini
+各自の PC 上で計算することにします。
 
-Bagian yang ditampilkan seperti di bawah ini, kecuali dinyatakan lain, menunjukkan perintah yang diketik di Terminal.
+### 0-0 この文書について
+
+以下のように表示されている部分は、特に断りがない限り、Terminal に打ちこむコマンドを表しています。
 
 ```shell
 cd MeltingPoint
 ```
 
-### 0-1 Persiapan untuk menggunakan cloud
-1. Kami akan membagikan akun untuk login ke server komputasi (Universitas Okayama atau Amazon EC2). Jika menggunakan komputer Universitas Okayama, siapkan koneksi VPN terlebih dahulu dan pastikan Anda dapat terhubung. (→ 9. Lampiran)
-2. Dari ikon di sebelah kiri jendela VSCode ![Extension](https://i.gyazo.com/fd1a561033b9f2fbc2245681c70ca67b.png), tambahkan ekstensi berikut:
-  * Remote SSH ![Remote SSH icon](https://ms-vscode-remote.gallerycdn.vsassets.io/extensions/ms-vscode-remote/remote-ssh/0.108.2023110315/1699024773750/Microsoft.VisualStudio.Services.Icons.Default)
-3. Hubungkan ke alamat IP yang ditentukan. Tekan tombol di kiri bawah jendela VSCode ![Remote](https://i.gyazo.com/bf32d7cb4356d4465343a3caebc7b996.png). (Akan ada beberapa pertanyaan.)
-4. Siapkan sumber program di komputer cloud. Tekan `Clone Git Repository...` di tengah jendela VSCode, ketika muncul `Clone from GitHub` tekan enter, lalu tentukan `vitroid/gromacs-usecases`. Ketika ditanya lokasi penyimpanan, tekan enter. Langkah ini tidak diperlukan untuk login kedua dan seterusnya.
-5. Buka folder `MeltingPoint` di dalam folder tempat sumber disimpan.
+### 0-1 自分の PC に Gromacs の動作環境を作る
 
-### 0-2 Persiapan komputer lokal
+1. VSCode をインストールする。
+   1. VSCode に以下の拡張をインストールします。![Extension](https://i.gyazo.com/fd1a561033b9f2fbc2245681c70ca67b.png)
+      1. Dev Container: Docker の仮想マシンにアクセスするのに必要です。
+      2. Git Extension Pack
+      3. gromacs helper: データが見やすくなります。
+1. Docker を用いて、仮想 Linux マシンを自分の PC の中に作ります。
 
-1. Kita akan menggunakan alat untuk memplot data. Gunakan Igor Pro, gnuplot, atau ngraph jika Anda bisa menggunakannya. Jika tidak ada, Anda bisa menggunakan Excel, Numbers, atau Google Spreadsheet sebagai alternatif. Namun, kami tidak akan menjelaskan cara menggunakan masing-masing program di sini.
-2. Instal terlebih dahulu alat visualisasi hasil simulasi [VMD](https://www.ks.uiuc.edu/Research/vmd/alpha/).
+   #### Mac の場合
 
-## 1. Memilih model molekul air
+   1. Orbstack をインストール https://orbstack.dev/download (Mac 用の Docker Desktop よりもだいぶ便利)
 
-Model molekul adalah aproksimasi bentuk dan interaksi molekul menggunakan fungsi sederhana. Sebenarnya, gaya yang bekerja antar molekul dan cara ikatan melibatkan keadaan elektron, dan hanya dapat diperoleh dengan menghitung orbit elektron (yang terdistribusi seperti awan di sekitar inti atom) secara akurat, tetapi dalam simulasi molekuler, untuk mengurangi jumlah perhitungan, panjang ikatan ditetapkan atau distribusi elektron diperkirakan dengan muatan titik.
+   #### Windows の場合
 
-Ada lebih dari 100 jenis model molekul air yang digunakan dalam simulasi komputer. Ini karena konsep aproksimasi yang berbeda. Sebagian besar dirancang untuk mereproduksi sifat-sifat air cair dan larutan pada suhu kamar, sehingga tidak cocok untuk mengamati transisi fasa kristalisasi. (Titik lelehnya jauh menyimpang dari 273 K)
+   1. Docker Desktop をインストール https://docs.docker.com/desktop/setup/install/windows-install/
 
-Di sini, kita akan menggunakan model TIP4P/Ice yang baru-baru ini dikembangkan dan memiliki keandalan tinggi. Titik leleh model ini pada tekanan 1 atmosfer dikatakan 270 K [^1], dan sering digunakan untuk mempelajari perilaku air, es, dan hidrat (kristal terhidrasi) pada suhu di bawah suhu kamar.
+1. Linux 仮想マシンを起動します。Terminal をひらき、
 
-> Bukankah titik leleh es sudah diketahui dari eksperimen? Benar sekali. Tapi yang ingin kita ketahui adalah titik leleh model molekul air yang digunakan dalam simulasi komputer. Jika kualitas model buruk, titik lelehnya tidak akan sesuai dengan nilai eksperimen. Tujuan simulasi molekuler __bukan untuk mendapatkan data yang sesuai dengan eksperimen__. Nilainya terletak pada mendapatkan informasi yang tidak terlihat dalam eksperimen sambil menjamin reproduksi eksperimen. Jika modelnya membatasi sifat-sifat seperti titik leleh dengan baik, dapat dianggap bahwa gerakan molekulpun direproduksi dengan cukup akurat. Jika demikian, kita dapat mempercayai hasil pengamatan langsung tentang bagaimana air membeku dari antarmuka padat-cair (yang tidak terlihat dalam eksperimen).
+   ```shell
+   docker run -it ubuntu
+   ```
 
-Untuk detail bentuk TIP4P/Ice, lihat [tautan ini](http://www.sklogwiki.org/SklogWiki/index.php/TIP4P/Ice_model_of_water).
+   と入力すると、プロンプト"#"が表示されます。続いて、仮想マシン内に、最低限必要なソフトウェアをインストールします。
 
-Meskipun molekul air terdiri dari 3 atom, ciri khas model air empat titik adalah penambahan satu titik interaksi tambahan untuk mendekati interaksi antara titik-titik massa secara aproksimasi.
+   ```shell
+   apt update
+   apt upgrade -y
+   apt install -y python3 pip gromacs git python3-poetry
+   ```
+
+   (途中で Time Zone を聞いてくるので Asia/Tokyo を答えて下さい。)
+
+   | パッケージ名   | 説明                                   |
+   | -------------- | -------------------------------------- |
+   | python3        | Python 言語                            |
+   | pip            | Python のパッケージマネージャ          |
+   | gromacs        | 分子動力学シミュレーションソフトウェア |
+   | git            | バージョン管理ソフトウェア             |
+   | python3-poetry | Python 仮想環境                        |
+
+1. ここからの作業は VSCode 内のほうが便利です。教材を展開し、Python の実行環境を作ります。
+
+   1. VSCode で新しいウィンドウを開き、Welcome ペインのなかの青い字「Clone Git Repository」をクリックします。VSCode のウィンドウ上方の入力窓で 1. [Clone from GitHub] 2. `vitroid/gromacs-usecases`と入力して Return/Enter を押す 3. `/root/`を選んで OK をクリック 4. 展開した教材をひらくかどうか聞いてくるので、Open を押します。
+      これで、教材が仮想マシンの`/root`フォルダー内に展開されます。ここで使うのは MeltingPoint の中身だけです。
+
+   2. VSCode 内でターミナルをひらきます。メニュー →Terminal→New Terminal。
+      1. Terminal 内で、MeltingPoint フォルダーに移動します。
+      ```shell
+      cd MeltingPoint
+      ```
+      2. Python の実行環境を準備します。
+      ```shell
+      poetry install
+      poetry shell
+      ```
+
+### 0-2 その他のツールの準備
+
+1. データをプロットするツールを利用します。Igor Pro や gnuplot や ngraph を使える人はそれを使って下さい。いずれもない場合は Excel や Numbers、それもない場合は Google Spreadsheet などでも代用できます。ただし、個々のプログラムの使い方はここでは解説しません。
+2. シミュレーション結果を可視化するツール[VMD](https://www.ks.uiuc.edu/Research/vmd/alpha/)をあらかじめインストールしておいて下さい。
+<!-- 動かない場合があります。その場合は、[ChimeraX](https://www.cgl.ucsf.edu/chimerax/download.html)をダウンロードします。    ChimeraXは水の仮想サイトを理解してくれない。 -->
+
+## 1. 水分子モデルを選ぶ
+
+分子モデルとは、分子の形や相互作用を簡単な関数で近似したものです。本来、分子間に働く力や、結合のしかたなどは電子状態が関わっており、電子の軌道(原子核の周囲に雲のように分布する)を正確に計算してはじめて得られるものですが、分子シミュレーションでは計算量を減らすために、結合長を固定したり、電子分布を点電荷で近似したりします。
+
+計算機シミュレーションに利用される水分子モデルは 100 種類以上あります。近似を行う際のコンセプトが違うためです。そのうちのほとんどは、常温の液体の水や水溶液の性質が再現されるように設計されてきたため、結晶化相転移を観察するのに適していません。(融点が 273 K からかなりずれています)
+
+ここでは、近年開発され、信頼性の高い TIP4P/Ice モデルを利用します。このモデルの 1 気圧での融点は 270 K と言われており[^1]、常温以下での水や氷やハイドレート(水和結晶)のふるまいを研究するのによく使われています。
+
+> 氷の融点なんて、実験ですでにわかっているだろうって?その通りです。でも、コンピュータシミュレーションで用いる水分子モデルの融点が知りたいのです。モデルの質が悪ければ、融点は実験値とはあわないでしょう。分子シミュレーションの目的は、**実験と合うデータを得ることではありません**。実験を再現することを保証しつつ、実験では見えない情報をとりだすことに価値があります。融点などの物性をよく制限するモデルであれば、分子の運動もそれなりに正しく再現していると考えられます。そうであれば、例えば固液界面からどのように水が凍っていくのかをその場で観察した結果(これは実験では見えない)をも信頼できると期待できます。
+
+TIP4P/Ice の形状の詳細は[リンク先](http://www.sklogwiki.org/SklogWiki/index.php/TIP4P/Ice_model_of_water)を見て下さい。
+
+水分子は 3 原子でできているのですが、相互作用を質点間の相互作用で近似的に表現するために、もう一点相互作用点を追加してあるのが四点モデルと呼ばれる水モデルの特徴です。
 
 ![4-site model of water](http://www.sklogwiki.org/SklogWiki/images/a/a5/Four_site_water_model.png)
 
-Model molekul TIP4P/Ice tertulis dalam `ice.top`.
+TIP4P/Ice の分子モデルは`ice.top`に書かれています。
 
 ```
 ; taken from http://www.sklogwiki.org/SklogWiki/index.php/GROMACS_topology_file_for_the_TIP4P/Ice_model
@@ -78,64 +130,64 @@ HW     1.00800       0.000       A   0.00000E+00   0.00000E+00
 ...
 ```
 
-File data ini berisi sekitar 50 baris, dan berisi informasi berikut:
+全部で 50 行ぐらいのデータファイルで、ここには以下のような内容が書かれています。
 
-* Berapa banyak titik yang digunakan untuk mendekati satu molekul air.
-* Jarak relatif titik-titik dalam molekul.
-* Bagaimana titik-titik berinteraksi satu sama lain (gaya Coulomb dan Lennard-Jones).
-* Apakah molekul diperlakukan sebagai benda fleksibel dengan titik-titik yang dihubungkan oleh pegas, atau sebagai benda kaku yang tidak berubah bentuk.
+- 1 つの水分子をいくつの点で近似表現しているか。
+- 分子の中での点の相対距離
+- 点と点はどのように相互作用するか(Coulomb 力と Lennard-Jones 力)
+- 分子は点と点をバネでつないだ柔軟な物体として扱うのか、それとも剛直で変形しない剛体として扱うのか。
 
-Untuk [TIP4P/Ice](http://www.sklogwiki.org/SklogWiki/index.php/TIP4P/Ice_model_of_water):
+[TIP4P/Ice](http://www.sklogwiki.org/SklogWiki/index.php/TIP4P/Ice_model_of_water)の場合は
 
-* Ada 4 titik interaksi.
-* Jarak H-H sekitar 0,15 nm, jarak O-H sekitar 0,1 nm.
-* 3 titik berinteraksi Coulomb, 1 titik lainnya berinteraksi Lennard-Jones.
-* Diperlakukan sebagai benda kaku.
+- 相互作用点は 4 点。
+- H-H 間距離は約 0.15 nm、O-H 間距離は約 0.1 nm。
+- 3 つが Coulomb 相互作用し、残る 1 点は Lennard-Jones 相互作用。
+- 剛体として扱う。
 
-## 2. Menempatkan molekul
+となっています。
 
-Bagaimana kita menempatkan molekul di awal sangat mempengaruhi keberhasilan simulasi selanjutnya.
+## 2. 分子を配置する
 
-Ketika memperkirakan titik leleh, jika kita memilih konfigurasi awal di mana semua molekul tersusun dalam struktur kristal es, es tidak akan meleleh bahkan jika suhu dinaikkan 10 K atau 20 K di atas titik leleh (fenomena pemanasan berlebih). Ini karena waktu yang dibutuhkan untuk terjadinya kerusakan struktur secara kebetulan, yang menjadi pemicu awal pelelehan, terlalu lama. Tentu saja, jika waktu perhitungan mendekati tak terbatas, es akan mulai meleleh pada suhu di atas titik leleh, tetapi perhitungan selama itu tidak mungkin dilakukan dengan komputer saat ini.
+最初に、分子をどう配置するかは、あとのシミュレーションの成否に大きく関わります。
 
-Demikian pula, jika kita mulai dari keadaan cairan sempurna, akan membutuhkan waktu yang sangat lama untuk kristal terbentuk secara alami, berapa pun suhu diturunkan. (fenomena pendinginan berlebih)
+融点を推定する際に、例えば初期配置として、すべての分子が氷の結晶構造に並ぶ配置を選ぶと、融点より 10 K や 20 K 温度を上げても氷は融けません(過熱現象)。これは、融けはじめるきっかけとなる、構造の崩壊が偶然起こるまでの時間がかかりすぎるためです。もちろん、無限に近い計算時間があれば、融点より上では融けはじめるはずですが、そんなに長い計算は今のコンピュータでは不可能です。
 
-Oleh karena itu, ketika ingin memperkirakan titik leleh, kita mempersiapkan keadaan di mana es dan air sudah ada bersama. Dengan cara ini, jika suhu yang ditetapkan lebih tinggi dari titik leleh, es akan perlahan-lahan meleleh, dan jika lebih rendah, kita akan melihat pertumbuhan es.
+同じように、はじめに完全に液体の状態からはじめると、温度をいくらさげても自然に結晶が生じるまでには非常に時間がかかります。(過冷却現象)
 
-Konfigurasi awal disiapkan dengan langkah-langkah berikut:
+そこで、融点を推定したい場合には、あらかじめ氷と水が共存する状態を準備します。こうすれば、設定した温度が融点よりも高ければ、氷は徐々に融けていきますし、低ければ氷の成長が見られます。
 
-1. Gunakan alat [GenIce](https://github.com/vitroid/GenIce) untuk membuat struktur kristal es. Kristal dibuat dalam bentuk balok panjang dengan rasio 1:1:2.
-2. "Tetapkan" setengah dari molekul air. Ini berarti mereka tidak bisa bergerak dari posisi awal mereka.
-3. Naikkan suhu hingga 800 K dan lakukan simulasi dinamika molekuler singkat. Bagian yang ditetapkan akan mempertahankan strukturnya, tetapi molekul air lainnya akan segera meleleh.
-4. Kembalikan suhu dan lepaskan fiksasi. Ini menghasilkan struktur awal dengan setengah cairan dan setengah padat.
-5. Lakukan simulasi selama beberapa waktu pada sekitar 270 K (titik leleh) dengan fiksasi dilepas untuk merelaksasi struktur.
+<!-- さらに、氷と水の界面が平坦であることも重要な条件です。もし、2つの相の間の界面が湾曲している場合、そこにはLaplace圧という圧力が生まれます。要するに、こちらが圧力を指示しても、界面が曲がることで圧力が変わってしまい、指示した圧力のもとでの融点がきちんと推定できない、ということになります。 -->
+
+初期配置は、次の手順で準備します。
+
+1. [GenIce](https://github.com/vitroid/GenIce)ツールを使い、氷の結晶構造を作ります。結晶は 1:1:2 の長い直方体形状になるようにします。
+2. 水分子の半分を「固定」します。文字通り、最初の場所から動けなくします。
+3. 温度を 800 K まで上げて、短い分子動力学シミュレーションを行います。固定した部分は構造を保ちますが、それ以外の水分子はすぐに融解します。
+4. 温度を戻し、固定を解除します。これにより、液体と固体が半分ずつの初期構造ができます。
+5. 固定を解除した状態で、270 K(融点)付近でしばらくシミュレーションを行い、構造を緩和させます。
 
 ![Alt text](https://i.gyazo.com/d8aa8995e76315701b7be2891e5ce2f9.jpg)
 
-> Es yang setengah meleleh. Setengah bagian kiri ditetapkan dan tidak bergerak. [^3] Karena kondisi batas periodik, ujung kiri dan kanan, atas dan bawah, depan dan belakang masing-masing terhubung dan molekul dapat keluar masuk.
+> 右半分が融けた氷。左半分は固定されていて動かない。[^3]周期境界条件なので、左端と右端、上端と下端、手前と奥はそれぞれつながっていて分子が出入りできる。
 
-Berikut adalah langkah-langkah spesifik:
+以下に、具体的な手順を書きます。
 
-### 2-1 Membuat kristal es
+### 2-1 氷の結晶を作る
 
-[GenIce](https://github.com/vitroid/GenIce) adalah alat untuk menghasilkan berbagai struktur kristal es. Kita akan menggunakannya untuk menghasilkan es Ih (es I heksagonal, jenis es yang paling umum ditemui).
+[GenIce](https://github.com/vitroid/GenIce)は、さまざまな氷の結晶構造を生成するツールです。これを用い、氷 Ih(こおりいちえいち、六方晶氷 I、もっとも身近に存在する氷)を生成します。
 
-Pertama, buka terminal.
+まず、ターミナルを開いてください。
 
-Instal genice2 terlebih dahulu. Ketik yang berikut di terminal:
+genice2 で氷の構造を生成します。
 
-```shell
-pip3.11 install numpy genice2
-```
-
-Gunakan genice2 yang telah diinstal untuk menghasilkan struktur es.
 ```shell
 genice2 1h -r 3 3 6 -w tip4p > ice.gro
 ```
 
-Opsi `-r` menentukan berapa banyak sel satuan yang akan disusun dalam arah x, y, dan z. Opsi `-w` menentukan jenis model molekul air.
+`-r`オプションで、単位胞を x,y,z 方向にいくつならべるかを指定しています。また、`-w`で水分子モデルの種類を指定します。">"は画面に表示される内容をファイルに書きだすことを表す記法です。
 
-Di akhir `ice.gro`, ukuran kotak ditulis dalam satuan nm seperti ini:
+`ice.gro`の末尾には、こんな風に箱の大きさが nm 単位で書かれています。
+
 ```
 ...
   863ICE    HW1 3450   2.178   1.983   5.379
@@ -148,24 +200,25 @@ Di akhir `ice.gro`, ukuran kotak ditulis dalam satuan nm seperti ini:
     2.34685163 2.20607179 5.42191111
 ```
 
-Ini adalah sel dengan dimensi 2,3 nm, 2,2 nm, dan 5,4 nm dalam arah sumbu x, y, dan z, sedikit lebih panjang dalam arah z.
+x, y, z 軸方向の寸法がそれぞれ 2.3 nm, 2.2 nm, 5.4 nm で、z 方向に長いセルです。
 
-Mari kita visualisasikan struktur ini untuk sementara. Klik kanan `ice.gro` di browser file di sisi kiri jendela VSCode dan unduh. Buka file tersebut dengan VMD.
+とりあえず、この構造を可視化してみましょう。VSCode のウィンドウ左側のファイルブラウザで`ice.gro`を右クリックし、ダウンロードします。そのファイルを VMD で開きます。
 
 ![ice Ih](https://i.gyazo.com/d30d131bc64aaf09ab4a7e356bf0b299.png)
 
-### 2-2 Menetapkan molekul
+### 2-2 分子を固定する
 
-`Gromacs` memiliki fitur untuk membuat atom tidak bergerak dengan menentukan nomor atomnya. Karena akan merepotkan untuk menentukan secara manual, kita akan menggunakan skrip Python untuk menetapkan hanya atom-atom dengan koordinat Z kurang dari 2,7 nm.
+`Gromacs`には、原子の番号を指定して、その原子を動けなくする機能があります。手で指定するのはたいへんなので、python スクリプトをつかって、Z 座標が 2.7 nm 未満の原子だけを固定します。
 
-#### 2-2-1 Memberi indeks pada atom
+#### 2-2-1 原子にインデックスをつける
 
-Perintah make_ndx dari Gromacs menghasilkan file `.ndx` yang mengklasifikasikan atom berdasarkan jenisnya.
+Gromacs の make_ndx コマンドは、原子を種類ごとに分類した`.ndx`ファイルを生成します。
 
 ```shell
 gmx make_ndx -f ice.gro -o ice.ndx
 ```
-Jalankan ini dan tekan q ketika prompt ditampilkan untuk keluar. ice.ndx akan berisi konten seperti berikut:
+
+を実行し、prompt が表示されたら、q を押して終了します。ice.ndx には以下のような内容が書かれます。
 
 ```
 [ System ]
@@ -175,19 +228,19 @@ Jalankan ini dan tekan q ketika prompt ditampilkan untuk keluar. ice.ndx akan be
 ...
 ```
 
-File ini mengelompokkan atom-atom. Grup System berisi semua atom.
+このファイルには、原子がグループ分けされています。System グループには、全原子が属しています。
 
-Mari kita siapkan grup FIX baru yang berisi daftar atom yang ingin kita tetapkan dengan cara yang sama.
+同じ要領で、固定したい原子だけを列挙した FIX グループを新たに自分で準備しましょう。
 
-#### 2-2-2 Menambahkan indeks atom yang ditetapkan
+#### 2-2-2 固定した原子のインデックスを追加する
 
-Tambahkan indeks atom yang ingin ditetapkan ke akhir file ini.
+このファイルの末尾に、固定したい原子のインデックスを追加します。(">>"は既存のファイルの後ろに書きたすことを表す記法です)
 
 ```shell
 python3 zfix.py 0.0 2.7 < ice.gro >> ice.ndx
 ```
 
-Ini akan menambahkan baris-baris berikut ke akhir file `ice.ndx`:
+これにより、`ice.ndx`ファイルの末尾に、以下のような行が追加されます。
 
 ```
 ...
@@ -198,44 +251,44 @@ Ini akan menambahkan baris-baris berikut ke akhir file `ice.ndx`:
 ...
 ```
 
-### 2-3 Melelehkan setengah sisanya
+### 2-3 残り半分を融かす
 
-Kita akan menaikkan suhu hingga 800 K sambil menjaga volume tetap. Biasanya ini akan menyebabkan pendidihan, tetapi karena tidak bisa mengembang, air hanya akan menjadi cair. Langkah ini hanya untuk merusak struktur, jadi tidak perlu dijalankan terlalu lama.
+体積一定のままで、温度を 800 K まで上げます。普通なら沸騰しそうなものですが、膨張できないので、液体になるだけでとまります。このステップは、ただ構造を壊したいだけなので、長時間実行する必要はありません。
 
-Eksekusi metode dinamika molekuler di Gromacs selalu terdiri dari tiga langkah:
+Gromacs での分子動力学法の実行は、いつも 3 段階の手順になります。
 
-1. "Kompilasi" file konfigurasi untuk mengubahnya menjadi format data yang mudah dibaca oleh Gromacs.
-2. Membaca data tersebut dan menjalankan simulasi dinamika molekuler utama (mdrun).
-3. Mengubah data yang dihasilkan menjadi format yang mudah dibaca manusia.
+1. 設定ファイルを「コンパイル」して、Gromacs が読みやすいデータ形式に変換する。
+2. そのデータを読みこんで、分子動力学シミュレーションの本体(mdrun)を実行する。
+3. 生成したデータを、人間が読みやすいように変換する。
 
-#### 2-3-1 Kompilasi
+#### 2-3-1 コンパイル
 
-File dengan ekstensi `.mdp` berisi detail tentang bagaimana melakukan dinamika molekuler. Penjelasan untuk masing-masing parameter ditulis sebagai komentar dalam file `fix.mdp`. Hampir semua informasi selain konfigurasi molekul dan interaksi, seperti waktu perhitungan, interval perekaman, pengaturan suhu, pengaturan tekanan, dll., ditulis dalam `.mdp`. Dalam kasus `fix.mdp`, selain itu juga ada instruksi untuk menetapkan grup atom `FIX` yang ditentukan dalam file `.ndx`.
+拡張子`.mdp`のファイルには、分子動力学の実施方法を詳細に記載します。個々のパラメータの説明は、`fix.mdp`ファイルにコメントとして書きこんであります。計算時間、記録間隔、温度設定、圧力設定など、分子配置と相互作用以外のほぼすべての情報は`.mdp`に書きます。`fix.mdp`の場合、それらに加えて`.ndx`ファイルで指定した`FIX`原子グループを固定することを指示します。
 
-Kompilasi ini dengan perintah berikut untuk membuat file `.tpr`:
+以下のコマンドでこれをコンパイルして、`.tpr`ファイルを作ります。
 
 ```shell
 gmx grompp -maxwarn 1 -f fix.mdp -p ice.top -c ice.gro -n ice.ndx   -o fixed.tpr
 ```
 
-Ini akan membuat file `fixed.tpr` yang akan dibaca oleh Gromacs.
+これにより、Gromacs が読みこむファイル`fixed.tpr`ができました。
 
-#### 2-3-2 Eksekusi
+#### 2-3-2 実行
 
-Sekarang kita akan menjalankan simulasi dengan membaca 00001.tpr yang dibuat di 2-3-1!
+2-3-1 で作った 00001.tpr を読みこんでシミュレーションを実行します!
 
 ```shell
 gmx mdrun -deffnm fixed
 ```
 
-Ketika ini dijalankan, banyak file lain yang dimulai dengan `fixed.` akan dihasilkan. (-deffnm kemungkinan adalah singkatan dari default file name, yang menginstruksikan untuk menambahkan `fixed.` ke semua file output yang tidak ditentukan secara eksplisit.)
+これを実行すると、ほかにも`fixed.`からはじまるたくさんのファイルが生成されます。(-deffnm は、たぶん default file name の略で、明示的に指定しなかった出力ファイルには全部`fixed.`をつけて下さい、と指示しています。)
 
-* `fixed.cpt`: File checkpoint, diperlukan untuk melanjutkan perhitungan.
-* `fixed.edr`: File yang berisi informasi statistik seperti suhu dan tekanan.
-* `fixed.trr`: Data koordinat dan kecepatan atom (disebut trajektori).
-* `fixed.log`: Catatan lainnya. Waktu eksekusi juga dicatat dalam file ini.
+- `fixed.cpt`: チェックポイントファイル、続きの計算を行うのに必要なファイル。
+- `fixed.edr`: 温度や圧力などの、統計情報が含まれるファイル。
+- `fixed.trr`: 原子の座標や速度のデータ(トラジェクトリと呼ばれる)。
+- `fixed.log`: その他の記録。実行時間などもこのファイルに記録される。
 
-Di bagian akhir `fixed.log`, informasi waktu eksekusi dicatat seperti berikut:
+`fixed.log`の末尾には以下のように実行時間の情報が記録されます。
 
 ```
 starting mdrun 'water TIP4P/Ice'
@@ -249,273 +302,285 @@ Writing final coordinates.
 Performance:       87.185        0.275
 ```
 
-Ini adalah kasus yang dijalankan di MacBook Air, dan kita dapat melihat bahwa:
+これは MacBook Air で実行したケースですが、
 
-* Menggunakan 800% CPU (menggunakan 8 core)
-* 50000 langkah dijalankan. Karena 1 langkah adalah 0,002 ps, simulasi 100 ps telah dilakukan.
-* Waktu yang dibutuhkan adalah 100 detik. Pada kecepatan ini, perhitungan untuk 90 ns dapat dilakukan dalam satu hari.
+- CPU を 800%使っている(8 core を使用している)
+- 50000 ステップ実行した。1 ステップが 0.002 ps なので、100 ps のシミュレーションが行われた。
+- かかった時間は 100 秒。このペースだと一日で 90 ns 分の計算ができる。
 
-#### 2-3-3 Konfirmasi
+といったことが読みとれます。
 
-Mari kita visualisasikan gerakan molekul menggunakan alat visualisasi hasil simulasi [VMD](https://www.ks.uiuc.edu/Research/vmd/alpha/).
+#### 2-3-3 確認
 
-Pertama, kita akan mengubah konfigurasi molekul yang diperoleh dari perhitungan dinamika molekuler menjadi format yang mudah divisualisasikan.
+シミュレーション結果を可視化するツール[VMD](https://www.ks.uiuc.edu/Research/vmd/alpha/)を使い、分子運動を可視化してみましょう。
+
+まず、分子動力学計算で得られた分子配置を、可視化しやすいように変換します。
 
 ```shell
 gmx trjconv -f fixed.trr -s fixed.tpr -pbc whole   -o fixed.gro
 ```
 
-Ketika diminta input, tekan 0 dan kemudian enter. (Ini akan memvisualisasikan seluruh Sistem)
+入力を求められたら、0 を押してリターンを押します。(System 全体を可視化します)
 
-Ini akan membuat file `fixed.gro`. Ini adalah file yang cukup besar.
+これで、`fixed.gro`ファイルができました。かなり大きなファイルです。
 
-1. Di VSCode, klik kanan `fixed.gro` dan unduh.
-2. Buka VMD.
-3. Seret dan lepas file yang diunduh ke jendela Utama VMD.
+1. VSCode で、`fixed.gro`を右クリックしてダウンロードします。
+2. VMD を起動します。
+3. Download したファイルを、VMD の Main ウィンドウにドラッグアンドドロップします。
 
-Anda akan melihat bahwa molekul di bagian yang ditetapkan sama sekali tidak bergerak. Di sisi lain, bagian yang tidak ditetapkan menjadi benar-benar acak.
+固定した部分は、分子はびくとも動いていないことがわかります。一方、固定していない部分は完全にランダムになっています。
 
 ![Half melted](https://i.gyazo.com/b8aceaa130a2caaab557e6298562a8fd.png)
 
-#### 2-3-4 Relaksasi
+#### 2-3-4 緩和
 
-Kita akan menurunkan suhu, melepaskan fiksasi atom, dan membiarkan struktur berelaksasi. Pada saat ini, kita juga akan memungkinkan volume berubah, dan beralih ke simulasi tekanan konstan.
+温度を下げ、原子の固定をはずして、構造を緩和させます。この時に、体積も変化できるようにし、圧力一定でのシミュレーションに切り替えます。
 
-Seperti sebelumnya, pengaturan simulasi ditulis dalam `.mdp`. Kali ini kita akan menggunakan `relax.mdp`.
+シミュレーションの設定はさきほどと同じく、`.mdp`に書きます。今回は`relax.mdp`を使用します。
 
-Anda dapat menggunakan [fitur perbandingan file VSCode](https://www.mytecbits.com/microsoft/dot-net/compare-contents-of-two-files-in-vs-code) untuk melihat perbedaan antara `relax.mdp` dan `fix.mdp`.
+[VSCode のファイル比較機能](https://www.mytecbits.com/microsoft/dot-net/compare-contents-of-two-files-in-vs-code)を使うと、`relax.mdp`と`fix.mdp`の違いがわかります。
 
-Ada tiga perubahan:
+変更されているのは 3 点。
 
-1. Suhu diturunkan menjadi 270 K.
-2. Beralih dari volume konstan ke tekanan konstan.
-3. Fiksasi molekul dilepaskan.
+1. 温度が 270 K に下げられた。
+2. 体積一定から圧力一定に切り替えた。
+3. 分子の固定を外した。
 
-Mari kita kompilasi lagi menggunakan ini dan jalankan.
+これを使って、またコンパイルし、実行します。
 
 ```shell
 gmx grompp -maxwarn 1 -f relax.mdp -p ice.top  -c fixed.tpr -t fixed.cpt   -o relaxed.tpr
 gmx mdrun -deffnm relaxed
 ```
 
-Seperti di 2-3-3, buatlah `relaxed.gro` dan amati dengan VMD. Kali ini, Anda akan melihat bahwa molekul di bagian es juga bergetar sedikit.
+2-3-3 と同じように、`relaxed.gro`を作って、VMD で観察して下さい。今度は、氷の部分の分子もぷるぷると振動していることがわかります。
 
 ```shell
 gmx trjconv -f relaxed.trr -s relaxed.tpr -pbc whole   -o relaxed.gro
 ```
 
-## 3. Melakukan simulasi pada suhu target
+## 3. 目標とする温度で、シミュレーションを行う
 
-Menggunakan struktur yang dibuat di 2. sebagai konfigurasi awal, kita akan melakukan simulasi jangka panjang pada berbagai suhu.
+2.で作った構造を初期配置とし、いろんな温度で長時間のシミュレーションを行います。
 
-Target tekanan adalah 1 atmosfer, dan waktu simulasi adalah 3-10 ns. Dalam simulasi ini, kita menggunakan dt=0.002 ps, jadi 1 ns setara dengan 500.000 langkah.
+圧力は 1 気圧、シミュレーション時間は 3〜10 ns を目標とします。このシミュレーションでは dt=0.002 ps としていますので、1 ns は 500 000 ステップに相当します。
 
-Di sini, sebagai contoh, kita akan menjelaskan perhitungan pada 250 K. Ini 20 K lebih rendah dari titik leleh TIP4P/Ice [^1], jadi es diharapkan akan segera tumbuh. (Untuk suhu selain 250 K, silakan sesuaikan sesuai kebutuhan.)
+ここでは例として、250 K での計算を解説します。これは、TIP4P/Ice の融点[^1]に対して 20 K も低温なので、氷はただちに成長すると予想されます。(250 K 以外の温度の場合は適宜読みかえて下さいね。)
 
-### 3-1 Persiapan lingkungan kerja
+### 3-1 作業環境の準備
 
-Buka file pengaturan perhitungan berkelanjutan `continue.mdp` di VSCode, ubah pengaturan suhu menjadi 250 K seperti yang ditunjukkan di bawah ini, dan **simpan dengan nama file yang berbeda** sebagai `T250.mdp`.
+継続計算用の設定ファイル`continue.mdp`を VSCode で開き、下に示すように温度設定を 250 K に修正して、ファイル名は`T250.mdp`として**別名で保存**します。
 
 ```
 ...
 
-ref_t                    = xxxx      ; Suhu sistem. Satuan dalam K.
+ref_t                    = xxxx      ; 系の温度。単位はK。
 
 ...
 ```
 
-Juga, di bagian awal `T250.mdp`, ada instruksi untuk jumlah langkah perhitungan. Jumlah langkah yang diperlukan berbeda untuk suhu rendah dan tinggi. Untuk saat ini, kita ingin melakukan simulasi 3 ns untuk 280 K ke atas, dan 10 ns untuk di bawahnya, tetapi mengingat kemungkinan perhitungan tidak selesai dalam waktu kuliah, silakan semua orang menghitung 3 ns terlebih dahulu. (Bisa diperpanjang nanti)
+また、`T250.mdp`のはじめの方に、計算ステップ数の指示があります。低温と高温では必要なステップ数が違います。とりあえず、280 K 以上では 3 ns、それ未満では 10 ns のシミュレーションを行いたいのですが、講義時間内に計算が終わらない可能性を考え、まず全員 3 ns を計算して下さい。(あとから延長できます)
 
-Jika Anda ingin mencoba perhitungan 10 ns, ubah bagian berikut:
+10 ns の計算に挑戦する場合は、以下の部分を書きかえて下さい。
+
 ```
 ...
 
-nsteps                   = 5000000     ; Jumlah langkah MD.
-nstxout                  = 5000        ; Koordinat dioutput setiap nstxout langkah.
-nstlog                   = 5000        ; Frekuensi informasi ditulis ke log.
+nsteps                   = 5000000     ; MDのステップ数。
+nstxout                  = 5000        ; 座標がnstxoutステップに一度出力される。
+nstlog                   = 5000        ; logに情報が書き込まれる頻度。
 
 ...
 ```
 
-Bandingkan `relax.mdp` dan `continue.mdp`.
+`relax.mdp`と`continue.mdp`を比較して下さい。
 
-### 3-2 Menjalankan simulasi
+### 3-2 シミュレーションの実行
 
-Kemudian, kompilasi file pengaturan. Kita akan menamai file yang dihasilkan `T250.tpr`.
+そして、設定ファイルをコンパイルします。生成するファイル名は`T250.tpr`としました。
 
 ```shell
 gmx grompp -maxwarn 1 -f T250.mdp -p ice.top  -c relaxed.tpr -t relaxed.cpt   -o T250.tpr
 ```
 
-Jalankan!
+実行!
 
 ```shell
-gmx mdrun -deffnm T250 -nt 16
+gmx mdrun -deffnm T250
 ```
 
-Kita menentukan jumlah proses paralel dengan `-nt 16`. (Jika tidak ditentukan, kadang-kadang ada kasus yang menghasilkan error di tengah jalan. Tapi mungkin tidak diperlukan.) Dalam praktikum ini, kita menggunakan komputer dengan 96 core, jadi bisa menentukan hingga 96, tetapi jika jumlah proses paralel untuk semua orang melebihi 96, proses semua orang akan melambat. Harap batasi hingga 16 ketika sedang sibuk. (16 x 5 = 80 < 96)
+<!-- 並列処理の数`-nt 16`を指定しています。(つけないと途中でエラーを出すケースがありました。でも要らないかも。) 実習では 96 core の計算機を利用するので、最大 96 まで指定できますが、全員のジョブの並列処理数が 96 を越えると、全員の処理が遅くなります。混んでいる時は 16 にとどめて下さい。(16 x 5 = 80 < 96) -->
 
-Ini seharusnya memakan waktu 30 sampai 100 kali lebih lama dari sebelumnya. Mari kita tunggu dengan sabar sambil minum kopi.
+さっきの 30 倍〜100 倍の時間がかかるはずです。コーヒーでも飲んで、気長に待ちましょう。
 
-### 3-3 Perpanjangan
+### 3-3 延長
 
-Jika dalam analisis selanjutnya ternyata waktu simulasi masih kurang, kita bisa memperpanjang perhitungan dengan cara berikut.
+あとの解析で、まだシミュレーションの時間が足りないことがわかった場合は、次のようにして計算を延長することができます。
 
-Pertama, berdasarkan file `.tpr` yang dihasilkan oleh `grompp` sebelumnya, kita buat file `.tpr` baru dengan waktu eksekusi yang diperpanjang. Opsi `-extend` menentukan waktu tambahan perhitungan dalam satuan ps. Kita akan memperpanjang 2000 ps = 1 ns.
+まず、さきほど`grompp`で生成した`.tpr`ファイルをもとに、実行時間を延長した新しい`.tpr`ファイルを作成します。 `-extend`オプションは追加計算する時間を ps 単位で指定します。2000 ps=1 ns だけ延長します。
 
 ```shell
 gmx convert-tpr -extend 2000 -s T250.tpr -o extended.tpr
 ```
 
-Kemudian jalankan! (Untuk perhitungan lanjutan, sepertinya perlu menentukan beberapa opsi.)
+そして実行! (継続計算の場合は、オプションをいろいろ指定する必要があるようです。)
 
 ```shell
 gmx mdrun -deffnm extended -cpi T250.cpt -s extended.tpr -noappend
 ```
 
-Kali ini mungkin memakan waktu cukup lama untuk bisa makan.
+こんどは食事ができるぐらい時間がかかるかもしれません。
 
-## 4. Visualisasi hasil
+## 4. 結果の可視化
 
-Untuk mengonfirmasi apa yang sebenarnya terjadi, mari kita transfer data koordinat molekul ke komputer lokal dan tampilkan gerakan molekul menggunakan VMD.
+実際にどんなことが起こっているのかを確認するために、分子座標データを手許のコンピュータに転送し、VMD で分子運動を表示させてみましょう。
 
-Pertama, kita ubah data trajektori `.trr` menjadi format `.gro`.
+まず、トラジェクトリデータ`.trr`を、`.gro`形式に変換します。
 
-(Anda juga bisa melakukan konversi di tengah simulasi. Dalam hal ini, buka terminal baru untuk bekerja.)
+(シミュレーションの途中でも変換できます。その場合は、ターミナルをもう一つ開いて作業します。)
+
 ```shell
 gmx trjconv -f T250.trr -s T250.tpr -pbc whole -o T250.gro
 ```
 
-Unduh ini dan buka dengan VMD.
+これを Download し、VMD で開きます。
 
-Dengan perhitungan 1 ns, mungkin sulit untuk menentukan apakah sedang meleleh atau membeku, tetapi dengan perhitungan 10 ns, biasanya bisa ditentukan.
+1 ns の計算では、融解しつつあるのか凍結しつつあるのか判別が難しい場合がありますが、10 ns 計算すれば、おおよそ判別がつきます。
 
-Menurunkan suhu tidak selalu berarti pembekuan lebih cepat, karena pada suhu rendah, gerakan molekul menjadi lebih lambat, yang juga memperlambat pertumbuhan kristal.
+温度を下げればより速く凍るか、というとそうでもなくて、温度が低いと分子運動が遅くなるせいで、結晶成長も遅くなります。
 
-Semakin tinggi suhu, semakin cepat meleleh, itu pasti.
+温度が高ければ高いほどはやく融けるのは間違いありません。
 
-## 5. Penilaian
+## 5. 判定
 
-Kita menyadari bahwa diperlukan waktu yang cukup lama sampai proses pertumbuhan terlihat jelas secara visual. Oleh karena itu, kita akan mengambil pendekatan yang berbeda.
+可視化しても成長の様子が目に見えてわかるようになるまでには、かなり時間を要することがわかります。そこで、違うアプローチをとります。
 
-Dalam simulasi dengan tekanan dan suhu konstan, kepadatan akan berbeda tergantung apakah menjadi cair atau padat. Demikian juga, energi potensial akan berbeda. Padat pasti akan memiliki energi potensial yang lebih rendah (karena entropinya lebih rendah). Dengan kata lain, dengan melihat perubahan energi potensial atau kepadatan terhadap waktu, kita dapat membedakan apakah es sedang tumbuh atau meleleh.
+圧力と温度一定でシミュレーションした場合、液体になるか固体になるかで密度が違ってきます。同時に、ポテンシャルエネルギーも違います。固体のほうが必ず(エントロピーが低いので)ポテンシャルエネルギーも低くなるはずです。つまり、ポテンシャルエネルギーか密度の時間変化を見れば、氷が成長しつつあるのか、融解しつつあるのかを見分けることができます。
 
-Mari kita plot dan periksa ini.
+これをプロットして確認します。
 
-Perubahan waktu dari kuantitas termodinamika seperti suhu, tekanan, energi potensial, dll. selama simulasi juga dicatat dalam file `.log`, tetapi informasi yang lebih rinci dicatat dalam file `.edr`.
+シミュレーション中の温度や圧力、ポテンシャルエネルギーなどの熱力学量の時間変化は`.log`ファイルにも書かれますが、より詳しい情報が`.edr`ファイルに記録されます。
 
-Perintah `gmx dump` digunakan untuk mengubah konten file `.edr` ini menjadi format yang mudah dibaca manusia.
+この`.edr`ファイルの内容を、人間が読みやすい形に変換するのが、`gmx dump`コマンドです。
 
 ```shell
 gmx dump -e T250.edr
 ```
 
-Namun, file yang diubah dengan cara ini juga tidak terlalu nyaman untuk pemrosesan data selanjutnya. Jadi, kita akan mengubahnya lebih lanjut menjadi format tabel menggunakan skrip buatan sendiri `undump.py`.
+ですが、こうして変換されたファイルも、あとのデータ処理にはあまり便利ではありませんそこで、これをさらに自作スクリプト`undump.py`を使って、表形式に変換します。
 
 ```shell
 gmx dump -e T250.edr | python3 undump.py > T250.txt
 ```
 
-Unduh file ini dan buka menggunakan alat yang sesuai (Excel?) untuk memplot hubungan antara waktu dan energi potensial.
+このファイルをダウンロードし、てきとうなツール(Excel?)を使って開いて、時間とポテンシャルエネルギーの関係をプロットして下さい。
 
-### 5-1 Untuk Gnuplot
+### 5-1 Gnuplot の場合
 
-Kolom pertama adalah waktu, kolom ketiga adalah energi potensial, dan kolom ketujuh adalah kepadatan.
+第 1 カラムが時刻、第 3 カラムがポテンシャルエネルギー、第 7 カラムが密度です。
 
 ```gnuplot
 plot 'T250.txt' u 1:3 w l
 ```
 
-## 6. Estimasi titik leleh
+## 6. 融点の推定
 
-Jika simulasi dilakukan cukup lama, es akan meleleh sepenuhnya pada suhu di atas titik leleh, dan akan membeku sepenuhnya pada suhu di bawah titik leleh. Dan energi potensial atau kepadatan akan mencapai nilai konstan.
+十分長いシミュレーションを行えば、融点より高温では氷は完全に融解し、低温では完全に凍結するはずです。そして、ポテンシャルエネルギーや密度は一定値になります。
 
 ![Alt text](https://i.gyazo.com/459da705c3832863b6f6b4c4c03643ad.jpg)
 
-> Perubahan energi potensial selama proses pertumbuhan es dari keadaan koeksistensi. Pada suhu rendah, energi yang lebih rendah tercapai tetapi membutuhkan waktu lebih lama. [^4] Titik leleh model air yang digunakan di sini diperkirakan 252 K, jadi suhu-suhu ini sesuai dengan suhu yang jauh lebih rendah dari titik leleh.
+> 共存状態から氷が成長する過程でのポテンシャルエネルギーの変化。低温ではより低いエネルギーに到達するものの、時間がかかる。 [^4] ここで使われている水分子モデル TIP4P/Ice の氷の融点は約 270 K と推定されており、これらの温度は融点よりもかなり低温に相当する。
 
-Waktu yang dibutuhkan untuk mencapai nilai konstan seharusnya menjadi lebih pendek semakin jauh dari titik leleh (namun, seperti yang disebutkan di atas, ketika suhu menjadi sangat rendah, gerakan molekul melambat sehingga membutuhkan waktu lebih lama untuk membeku.)
+一定値になるまでの時間は、融点から遠いほど短くなるはずです(ただし、上にも書いたように、温度がとても低くなると、分子運動が遅くなるために凍るまでにまた時間がかかるようになります。)
 
-Misalkan waktu yang dibutuhkan untuk pembekuan/pelelehan lengkap berbanding terbalik dengan perbedaan suhu dari titik leleh. Dalam hal ini, jika kita memplot suhu pada sumbu x dan kebalikan dari waktu yang dibutuhkan untuk menyelesaikan perubahan energi potensial pada sumbu y, kita akan mendapatkan kurva untuk sisi suhu rendah dan tinggi, dan kurva-kurva ini akan mendekati 0 pada titik leleh (dengan kata lain, pada titik leleh tepat, es tidak akan membeku atau meleleh tidak peduli berapa lama kita menunggu).
+仮に、完全凍結/完全融解までの時間が、融点からの温度差に反比例するものとします。その場合は、温度を横軸にとり、縦軸にポテンシャルエネルギーの変化が完了するまでの時間の逆数をとれば、低温側、高温側それぞれに曲線を描け、それらは融点で 0 に漸近する(すなわち、融点丁度では、いくらまっても凍りも融けもしない)と思われます。
 
-Namun, ketika mendekati titik leleh, waktu yang dibutuhkan untuk pembekuan lengkap menjadi terlalu lama. Juga, jika perhitungan tidak bisa dilakukan cukup lama, kita tidak bisa mengonfirmasi pembekuan lengkap. Dalam kasus seperti itu, alih-alih menunggu energi potensial akhir diperoleh, kita bisa mengukur kecepatan penurunan/kenaikan energi potensial dan memplot kebalikannya pada sumbu y.
+しかし、融点に近づいてくると、完全に凍るまでの時間がかかりすぎます。また、十分に長い計算ができない場合も、完全な凍結を確認できません。そんな場合は、最終的なポテンシャルエネルギーが得られるのを待つ代わりに、ポテンシャルエネルギーの減少/増加速度を測定し、その逆数を縦軸にとる、という方法もあります。
 
-## 7. Tugas
+## 7. 課題
 
-Silakan semua orang berbagi tugas untuk mengumpulkan perubahan energi potensial terhadap waktu dari 250 K hingga 290 K (dengan interval 5 K, kecuali 270 K), dan dari hasil-hasil tersebut, perkirakan titik leleh TIP4P/Ice.
+全員で手分けして、250 K から 290 K まで(5 K 間隔で、ただし 270 K は除く。)のポテンシャルエネルギーの時間変化を採取し、それらの結果から、TIP4P/Ice の融点を推定して下さい。
 
-|Nama Pengguna| Suhu  | Waktu Simulasi (Minimal) |
-|-------------|-------|--------------------------|
-|q1           | 255 K | 10 ns                    |
-|q2           | 285 K | 3 ns                     |
-|q3           | 265 K | 10 ns                    |
-|q4           | 275 K | 10 ns                    |
-|q5           | 260 K | 10 ns                    |
-|q6 (q1)      | 280 K | 3 ns                     |
-|q7 (q2)      | 250 K | 10 ns                    |
-|q8 (q3)      | 290 K | 3 ns                     |
-|q9 (q4)      | 245 K | 10 ns                    |
-|q10 (q5)     | 240 K | 10 ns                    |
+(黒板に温度を書き、そこに名前を書いてもらう)
 
-Menurut paper [^1] di bawah, titik leleh TIP4P/Ice adalah 270 K, tetapi dalam simulasi kali ini, kita menggunakan sistem dengan jumlah molekul yang jauh lebih sedikit untuk mempercepat perhitungan. Karena itu, ada kemungkinan titik leleh akan menyimpang dari 270 K.
+<!-- | ユーザ名 | 温度  | シミュレーション時間(最低) |
+| -------- | ----- | -------------------------- |
+| q1       | 255 K | 10 ns                      |
+| q2       | 285 K | 3 ns                       |
+| q3       | 265 K | 10 ns                      |
+| q4       | 275 K | 10 ns                      |
+| q5       | 260 K | 10 ns                      |
+| q6 (q1)  | 280 K | 3 ns                       |
+| q7 (q2)  | 250 K | 10 ns                      |
+| q8 (q3)  | 290 K | 3 ns                       |
+| q9 (q4)  | 245 K | 10 ns                      |
+| q10 (q5) | 240 K | 10 ns                      | -->
 
-Pada suhu 270 K atau suhu yang dekat dengan titik leleh yang diperkirakan, mungkin tidak akan membeku atau meleleh tidak peduli berapa lama kita menunggu.
+下の論文[^1]によれば、TIP4P/Ice の融点は 270 K となっていますが、今回は高速化のために、分子数がかなり少ない系でシミュレーションを行っています。そのせいで、融点が 270 K からずれる可能性があります。
 
-Waktu yang dibutuhkan untuk perubahan fase selesai tidak selalu konstan. Jika ada waktu, sebaiknya melakukan beberapa kali pengukuran pada suhu yang sama dan mencari rata-ratanya.
+予想される融点である 270 K や、それに近い温度では、いつまでたっても凍りも融けもしない可能性があります。
 
-Dalam laporan Anda, silakan tulis informasi berikut:
-1. Waktu yang dibutuhkan untuk pelelehan atau pembekuan pada setiap suhu (dalam format tabel) dan grafik (data mentah) yang menjadi dasar. Silakan bertukar dan berbagi data untuk suhu selain yang Anda hitung sendiri. (Jika Anda memiliki waktu lebih, Anda boleh menghitung suhu lain sendiri.)
-2. Grafik yang memplot kebalikan waktu yang dibutuhkan terhadap suhu. (Perkiraan kasar saja cukup)
-3. Penjelasan tentang bagaimana Anda memperkirakan titik leleh dari bentuk grafik 2, pertimbangan, dll.
+相変化が終わるまでにかかる時間は、いつも一定ではありません。時間があれば、同じ温度で何回か測定し、平均値を求めるべきです。
 
-## 8. Tambahan
+レポートには、以下の情報を書いて下さい。
 
-* Jika Anda membuat es III atau es V di awal dan menentukan tekanan yang sesuai, Anda juga bisa memperkirakan titik leleh es tekanan tinggi.
-  * Pada tekanan tinggi, ada kemungkinan struktur kristal yang tidak diinginkan muncul dari keadaan koeksistensi. Namun, akan sulit untuk membedakannya.
-* Metode yang sama bisa digunakan untuk transisi fase antara padat dan gas, atau cair dan gas.
-* Untuk transisi fase antara padat dan padat, metode ini tidak bisa digunakan untuk menentukan suhu transisi karena ukuran balok sel simulasi yang disesuaikan dengan sel satuan salah satu padatan akan tidak sesuai untuk kristal lainnya. Dalam kasus seperti itu, teknik lain yang menghitung energi bebas dari perhitungan frekuensi getaran khas digunakan.
-* Untuk air, transisi fase antara cairan dan fase cair lainnya juga bisa diamati![^2]
-* Dalam contoh penggunaan ini, kita memilih es Ih sebagai struktur awal dan menyiapkan keadaan koeksistensi padat-cair dengan melelehkan setengahnya. Bahkan jika kita hanya mengubah tekanan menjadi tekanan tinggi, ini tidak akan menjadi simulasi keadaan koeksistensi es III atau es V dan air. Dibutuhkan waktu yang sangat lama bagi kristal untuk secara alami berubah menjadi kristal lain. Jika tekanan setinggi es V diterapkan pada es Ih, strukturnya akan runtuh dan semuanya akan menjadi cair.
-* Anda juga bisa membuka beberapa terminal, menyalin folder, dan melakukan perhitungan dalam beberapa kondisi secara bersamaan.
+1. 各温度で融解または凍結にかかった時間 (表形式)と その根拠となるグラフ(生データ)。自分の計算した温度以外のデータは、交換・共有して下さい。(余力があれば、自分でほかの温度を計算しても構いません。)
+2. 温度に対し、所要時間の逆数をプロットしたグラフ。(おおよそでいい)
+3. 2 のグラフの形から、どのようにして融点を推定したかの説明、考察など。
 
-## 9. Lampiran
+## 8. 蛇足
 
-### 9-1 Koneksi VPN
+- 最初に作る氷を氷 III や氷 V にし、適切な圧力を指定すれば、高圧氷の融点も推定可能です。
+  - 高圧では、共存状態から意図しない結晶構造が生じる可能性もあります。ただし、それを見分けるのは難しいでしょう。
+- 固体と気体、あるいは液体と気体の間の相転移でも、同じ方法が使えます。
+- 固体と固体の間の相転移の場合は、シミュレーションセルの直方体の大きさをどちらかの固体の結晶の単位胞にあわせると、もう一方の結晶にとっては不都合になってしまうため、この方法で転移温度を決めることはできません。その場合は、固有振動数計算から自由エネルギーを求める別の技術を用います。
+- 水の場合、液体と、もう一つの液相の間の相転移も観察できます![^2]
+- この利用例では初期構造に氷 Ih を選び、半分を融かして固液共存状態を準備しました。これを、圧力だけ高圧に切りかえても、氷 III や氷 V と水の共存状態のシミュレーションにはなりません。結晶が自然に別の結晶に転移するには非常に時間がかかります。氷 Ih に、氷 V ほどの高圧を加えると、構造が崩壊して全部液体になるでしょう。
+- terminal を複数開き、フォルダーをコピーして、いくつもの条件で同時に計算することもできます。
 
-Akses remote ke server komputasi milik Laboratorium Kimia Teoritis Universitas Okayama (Xeon 96 core, IP `192.168.3.220`). Informasi pengaturan akan diberikan secara terpisah.
+## 8. あと始末
 
-Jika Anda tidak dapat terhubung dengan baik, gunakan Amazon EC2.
+レポートも書きおわって、データが要らなくなったら、Orbstack/Docker Desktop で Image(OS のインストール CD に相当)と Container(展開後のハードディスクイメージ)の両方を消すとディスク使用量を減らせます。
 
-#### 9-1-1 Untuk Mac
+<!-- ## 9. 補遺
 
-Masukkan pengaturan di System Settings->VPN->Add VPN Configuration.
+### 9-1 VPN 接続
+
+岡山大学理論化学研究室所有の計算サーバ(Xeon 96 core, IP `192.168.3.220`)にリモートアクセスします。設定情報は別途お渡しします。
+
+うまく接続できない場合は、Amazon EC2 を利用します。
+
+#### 9-1-1 Mac の場合
+
+System Settings->VPN->Add VPN Configuration で、設定を入力します。
 
 https://www.cc.uec.ac.jp/ug/ja/remote/vpn/l2tp/macos114/index.html
-mungkin berguna sebagai referensi (silakan ganti konten yang dimasukkan sesuai kebutuhan)
+が参考になります(入力する内容は適宜おきかえて下さい)
 
-#### 9-1-2 Untuk Windows
+#### 9-1-2 Windows の場合
 
 https://www.seil.jp/saw-mpc/doc/sa/pppac/use/pppac-client/win11_l2tp.html
-mungkin berguna sebagai referensi (silakan ganti konten yang dimasukkan sesuai kebutuhan)
+が参考になります(入力する内容は適宜おきかえて下さい)
 
-Control Panel → Network and Sharing Center → Change adapter settings → Pilih VPN → Properties → Security → Allow these protocols → Centang CHAP!!! (Fuh. Kenapa harus begitu dalam)
+コントロールパネル → ネットワークと共有センター → アダプタの設定変更 →VPN を選ぶ → プロパティ → セキュリティ → 次のプロトコルを許可する →CHAP にチェック!!! (ふう。なんでこんなに深いの)
 
-### 9-2 Penggunaan pribadi Amazon EC2
+### 9-2 Amazon EC2 の個人利用
 
-Bahkan dengan kuota gratis Amazon EC2, Anda masih bisa melakukan perhitungan yang cukup baik.
+Amazon EC2 の無料枠でも、そこそこの計算はできます。
 
-1. Buat akun di AWS. Anda akan membutuhkan nomor kartu kredit.
-2. Di dashboard EC2, buat instans EC2. Anda dapat menggunakan tipe instans t2.micro (2 core) secara gratis.
-3. Pilih Ubuntu untuk OS. (Ini cocok untuk digunakan sebagai platform komputasi)
-4. Sebagian besar pengaturan lainnya bisa dibiarkan default, tapi tanyakan instruktur jika ada yang tidak jelas.
+1. AWS にアカウントを作ります。クレジットカード番号が必要になります。
+2. EC2 ダッシュボードで、EC2 インスタンスを作成します。インスタンスタイプ t2.micro (2 cores)までなら、無料で利用できます。
+3. OS には Ubuntu を選びます。(計算プラットホームとして利用するのに適しています)
+4. そのほか、ほとんどの設定はデフォルトのままでいいですが、不明な点は講師にお尋ね下さい。
 
-### 9-3 Instalasi Gromacs dan alat lainnya
+### 9-3 Gromacs とその他のツールのインストール
 
-Bahkan tanpa menggunakan cloud, Anda dapat dengan mudah menginstal Gromacs dan GenIce di sistem operasi berbasis Unix.
+クラウドを使わなくても、Unix 系の OS になら、Gromacs や GenIce を簡単にインストールできます。
 
-#### 9-3-1 Untuk Ubuntu/Debian Linux
+#### 9-3-1 Ubuntu/Debian Linux の場合
 
-(Perlu dijalankan dengan hak administrator.)
+(管理者権限で実行する必要があります。)
+
 ```shell
 apt update
 apt install gromacs python3 python3-pip
@@ -523,30 +588,48 @@ pip install numpy
 pip install genice2
 ```
 
-#### 9-3-2 Untuk Redhat/Amazon Linux/CentOS7
+#### 9-3-2 Redhat/Amazon Linux/CentOS7 の場合
 
-Paket gromacs tidak ditemukan di EC2 Amazon Linux/RedHat Linux. Sepertinya Anda perlu menginstal yang diperlukan secara individual dari [RPM](https://rpmfind.net/linux/rpm2html/search.php?query=gromacs).
+EC2 の Amazon Linux/RedHat Linux では gromacs パッケージが見付かりませんでした。[RPM](https://rpmfind.net/linux/rpm2html/search.php?query=gromacs)から必要なものを個別にインストールする必要があるようです。
 
-#### 9-3-3 Untuk MacOS
+#### 9-3-3 MacOS の場合
 
-Siapkan Homebrew terlebih dahulu.
+Homebrew をセットアップしておきましょう。
 
-Dengan HomeBrew, Anda dapat menginstal tanpa hak administrator.
+HomeBrew では、管理者権限なしにインストールできます。
+
 ```shell
 brew install gromacs python3
 pip install genice2
 ```
 
-#### 9-3-4 Untuk Windows
+#### 9-3-4 Windows の場合
 
-(Informasi dibutuhkan!)
+(情報求む!) -->
 
-## Referensi
+## References
 
 [^1] Conde, M. M., Rovere, M. & Gallo, P. High precision determination of the melting points of water TIP4P/2005 and water TIP4P/Ice models by the direct coexistence technique. J. Chem. Phys. 147, 244506 (2017).
 
 [^2] Yagasaki, T., Matsumoto, M. & Tanaka, H. Spontaneous liquid-liquid phase separation of water. Phys. Rev. E Stat. Nonlin. Soft Matter Phys. 89, 020301 (2014).
 
-[^3] Yeyue Xiong, Parviz Seifpanahi Shabane, and Alexey V. Onufriev*, Melting Points of OPC and OPC3 Water Models, ACS Omega 39, 25087–25094 (2020).
+[^3] Yeyue Xiong, Parviz Seifpanahi Shabane, and Alexey V. Onufriev\*, Melting Points of OPC and OPC3 Water Models, ACS Omega 39, 25087–25094 (2020).
 
 [^4] Espinosa, J. R., Sanz, E., Valeriani, C. & Vega, C. Homogeneous ice nucleation evaluated for several water models. J. Chem. Phys. 141, 18C529 (2014).
+
+## 2024 年度は使わない
+
+### 0-1 クラウドを利用するための準備
+
+1. 計算サーバ(岡山大学、あるいは Amazon EC2)にログインするためのアカウントをこちらから配布します。岡山大学の計算機を利用する場合は、まず VPN 接続の準備をし、接続できることを確認して下さい。(→9. 補遺)
+2. VSCode のウィンドウ左のアイコン![Extension](https://i.gyazo.com/fd1a561033b9f2fbc2245681c70ca67b.png)から、以下の拡張を追加して下さい。
+
+- Remote SSH ![Remote SSH icon](https://ms-vscode-remote.gallerycdn.vsassets.io/extensions/ms-vscode-remote/remote-ssh/0.108.2023110315/1699024773750/Microsoft.VisualStudio.Services.Icons.Default)
+
+3. 所定の IP アドレスに接続します。VSCode のウィンドウ左下のボタン![Remote](https://i.gyazo.com/bf32d7cb4356d4465343a3caebc7b996.png)を押して下さい。(いろいろ聞いてきます。)
+4. クラウドのコンピュータにプログラムソースを準備します。VSCode のウィンドウ中央の `Clone Git Repository...`を押し、`Clone from GitHub`と表示されたらリターンを押し、`vitroid/gromacs-usecases`を指定して下さい。保存先を聞かれたらリターンを押します。2 回目のログイン以降はこの作業は不要です。
+5. ソースを保存したフォルダーの、`MeltingPoint`フォルダーを開きます。
+<!-- 6. VSCodeのターミナルを開きます。メニューのTerminal→New Terminalでターミナルを開き、以下のコマンドで作業ディレクトリを`MeltingPoint`に切り替えます。
+   ```shell
+   cd MeltingPoint
+   ``` -->

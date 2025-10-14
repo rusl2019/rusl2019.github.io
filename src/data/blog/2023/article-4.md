@@ -18,46 +18,48 @@ ogImage: ""
 canonicalURL: ""
 ---
 
-Kita akan menumbuhkan es dan mengamati permukaan es (antarmuka gas-padat).
+# 氷表面の観察
 
-## 0. Pengaturan Lingkungan
+氷を成長させて、氷の表面(気固界面)を観察します。
 
-### 0-0 Tentang dokumen ini
+## 0. 環境設定
 
-Bagian yang ditampilkan seperti di bawah ini, kecuali dinyatakan lain, menunjukkan perintah yang diketik di Terminal.
+### 0-0 この文書について
+
+以下のように表示されている部分は、特に断りがない限り、Terminalに打ちこむコマンドを表しています。
 
 ```shell
 cd MeltingPoint
 ```
 
-### 0-1 Persiapan lingkungan eksekusi
+### 0-1 実行環境の準備
 
-1. Unduh kode dan ekstrak di salah satu server komputasi. (Ketika Anda menekan tombol hijau, tombol Download ZIP akan muncul.)
+1. コードをダウンロードし、計算サーバのいずれかで展開します。(緑のボタンを押すと、Download ZIPボタンが表示されます。)
 
-   ![Code](https://i.gyazo.com/1c3a92c8494e362c636f41b393be6a0a.png)
+    ![Code](https://i.gyazo.com/1c3a92c8494e362c636f41b393be6a0a.png)
 
-   Silakan ekstrak file ZIP di disk yang memiliki ruang kosong pada server komputasi.
+    計算サーバ上の空き要領のあるディスク上でZIPファイルを展開しで下さい。
 
-### 0-2 Persiapan komputer lokal
+### 0-2 手許のコンピュータの準備
 
-1. Instal VSCode di komputer lokal Anda, dan akses server komputasi secara remote dari VSCode untuk membuka folder IceGrowth.
-2. Instal terlebih dahulu alat visualisasi hasil simulasi [VMD](https://www.ks.uiuc.edu/Research/vmd/alpha/).
+1. 手許のパソコンに、VSCodeをインストールし、VSCodeから計算サーバにリモートアクセスして、IceGrowthフォルダーを開いて下さい。
+2. シミュレーション結果を可視化するツール[VMD](https://www.ks.uiuc.edu/Research/vmd/alpha/)をあらかじめインストールしておいて下さい。
 
-## 1. Memilih model molekul air
+## 1. 水分子モデルを選ぶ
 
-Ada banyak jenis model molekul air yang digunakan dalam simulasi komputer. Sebagian besar dirancang untuk mereproduksi sifat-sifat air cair dan larutan pada suhu kamar, sehingga tidak cocok untuk mengamati transisi fasa kristalisasi.
+計算機シミュレーションに利用される水分子モデルには非常に多数の種類があります。そのうちのほとんどは、常温の液体の水や水溶液の性質が再現されるように設計されてきたため、結晶化相転移を観察するのに適していません。
 
-Di sini, kita akan menggunakan model TIP4P/Ice yang baru-baru ini dikembangkan dan memiliki keandalan tinggi. Titik leleh model ini pada tekanan 1 atmosfer dikatakan 270 K [^1], dan sering digunakan untuk mempelajari perilaku air, es, dan hidrat (kristal terhidrasi) pada suhu di bawah suhu kamar.
+ここでは、近年開発され、信頼性の高いTIP4P/Iceモデルを利用します。このモデルの1気圧での融点は270 Kと言われており[^1]、常温以下での水や氷やハイドレート(水和結晶)のふるまいを研究するのによく使われています。
 
-Bukankah titik leleh es sudah diketahui dari eksperimen? Benar sekali. Tapi yang ingin kita ketahui adalah titik leleh model molekul air yang digunakan dalam simulasi komputer. Jika kualitas model buruk, titik lelehnya tidak akan sesuai dengan nilai eksperimen. Tujuan simulasi molekuler **bukan untuk mendapatkan data yang sesuai dengan eksperimen**. Nilainya terletak pada mendapatkan informasi yang tidak terlihat dalam eksperimen sambil menjamin reproduksi eksperimen. Jika modelnya membatasi sifat-sifat seperti titik leleh dengan baik, dapat dianggap bahwa gerakan molekulpun direproduksi dengan cukup akurat. Jika demikian, kita dapat mempercayai hasil pengamatan langsung tentang bagaimana air membeku dari antarmuka padat-cair (yang tidak terlihat dalam eksperimen).
+氷の融点なんて、実験ですでにわかっているだろうって?その通りです。でも、コンピュータシミュレーションで用いる水分子モデルの融点が知りたいのです。モデルの質が悪ければ、融点は実験値とはあわないでしょう。分子シミュレーションの目的は、__実験と合うデータを得ることではありません__。実験を再現することを保証しつつ、実験では見えない情報をとりだすことに価値があります。融点などの物性をよく制限するモデルであれば、分子の運動もそれなりに正しく再現していると考えられます。そうであれば、例えば固液界面からどのように水が凍っていくのかをその場で観察した結果(これは実験では見えない)をも信頼できると期待できます。
 
-Untuk detail bentuk TIP4P/Ice, lihat [tautan ini](http://www.sklogwiki.org/SklogWiki/index.php/TIP4P/Ice_model_of_water).
+TIP4P/Iceの形状の詳細は[リンク先](http://www.sklogwiki.org/SklogWiki/index.php/TIP4P/Ice_model_of_water)を見て下さい。
 
-Meskipun molekul air terdiri dari 3 atom, ciri khas model air empat titik adalah penambahan satu titik interaksi tambahan untuk mendekati interaksi antara titik-titik massa secara aproksimasi.
+水分子は3原子でできているのですが、相互作用を質点間の相互作用で近似的に表現するために、もう一点相互作用点を追加してあるのが四点モデルと呼ばれる水モデルの特徴です。
 
 ![4-site model of water](http://www.sklogwiki.org/SklogWiki/images/a/a5/Four_site_water_model.png)
 
-Model molekul TIP4P/Ice tertulis dalam `ice.top`.
+TIP4P/Iceの分子モデルは`ice.top`に書かれています。
 
 ```
 ; taken from http://www.sklogwiki.org/SklogWiki/index.php/GROMACS_topology_file_for_the_TIP4P/Ice_model
@@ -74,60 +76,62 @@ HW     1.00800       0.000       A   0.00000E+00   0.00000E+00
 ...
 ```
 
-File data ini berisi sekitar 50 baris, dan berisi informasi berikut:
 
-- Berapa banyak titik yang digunakan untuk mendekati satu molekul air.
-- Jarak relatif titik-titik dalam molekul.
-- Bagaimana titik-titik berinteraksi satu sama lain (gaya Coulomb dan Lennard-Jones).
-- Apakah molekul diperlakukan sebagai benda fleksibel dengan titik-titik yang dihubungkan oleh pegas, atau sebagai benda kaku yang tidak berubah bentuk.
+全部で50行ぐらいのデータファイルで、ここには以下のような内容が書かれています。
 
-Untuk [TIP4P/Ice](http://www.sklogwiki.org/SklogWiki/index.php/TIP4P/Ice_model_of_water):
+* 1つの水分子をいくつの点で近似表現しているか。
+* 分子の中での点の相対距離
+* 点と点はどのように相互作用するか(Coulomb力とLennard-Jones力)
+* 分子は点と点をバネでつないだ柔軟な物体として扱うのか、それとも剛直で変形しない剛体として扱うのか。
 
-- Ada 4 titik interaksi.
-- Jarak H-H sekitar 0,15 nm, jarak O-H sekitar 0,1 nm.
-- 3 titik berinteraksi Coulomb, 1 titik lainnya berinteraksi Lennard-Jones.
-- Diperlakukan sebagai benda kaku.
+[TIP4P/Ice](http://www.sklogwiki.org/SklogWiki/index.php/TIP4P/Ice_model_of_water)の場合は
 
-## 2. Menempatkan molekul
+* 相互作用点は4点。
+* H-H間距離は約0.15 nm、O-H間距離は約0.1 nm。
+* 3つがCoulomb相互作用し、残る1点はLennard-Jones相互作用。
+* 剛体として扱う。
 
-Bagaimana kita menempatkan molekul di awal sangat mempengaruhi keberhasilan simulasi selanjutnya.
+となっています。
 
-Ketika memperkirakan titik leleh, jika kita memilih konfigurasi awal di mana semua molekul tersusun dalam struktur kristal es, es tidak akan meleleh bahkan jika suhu dinaikkan 10 K atau 20 K di atas titik leleh (fenomena pemanasan berlebih). Ini karena waktu yang dibutuhkan untuk terjadinya kerusakan struktur secara kebetulan, yang menjadi pemicu awal pelelehan, terlalu lama. Tentu saja, jika waktu perhitungan mendekati tak terbatas, es akan mulai meleleh pada suhu di atas titik leleh, tetapi perhitungan selama itu tidak mungkin dilakukan dengan komputer saat ini.
+## 2. 分子を配置する
 
-Demikian pula, jika kita mulai dari keadaan cairan sempurna, akan membutuhkan waktu yang sangat lama untuk kristal terbentuk secara alami, berapa pun suhu diturunkan. (fenomena pendinginan berlebih)
+最初に、分子をどう配置するかは、あとのシミュレーションの成否に大きく関わります。
 
-Oleh karena itu, ketika ingin memperkirakan titik leleh, kita mempersiapkan keadaan di mana es dan air sudah ada bersama. Dengan cara ini, jika suhu yang ditetapkan lebih tinggi dari titik leleh, es akan perlahan-lahan meleleh, dan jika lebih rendah, kita akan melihat pertumbuhan es.
+融点を推定する際に、例えば初期配置として、すべての分子が氷の結晶構造に並ぶ配置を選ぶと、融点より10 Kや20 K温度を上げても氷は融けません(過熱現象)。これは、融けはじめるきっかけとなる、構造の崩壊が偶然起こるまでの時間がかかりすぎるためです。もちろん、無限に近い計算時間があれば、融点より上では融けはじめるはずですが、そんなに長い計算は今のコンピュータでは不可能です。
 
-<!-- Penting juga bahwa antarmuka antara es dan air datar. Jika antarmuka antara dua fase melengkung, akan timbul tekanan yang disebut tekanan Laplace. Intinya, meskipun kita menentukan tekanan, tekanan akan berubah karena antarmuka melengkung, sehingga kita tidak dapat memperkirakan titik leleh dengan tepat pada tekanan yang kita tentukan. -->
+同じように、はじめに完全に液体の状態からはじめると、温度をいくらさげても自然に結晶が生じるまでには非常に時間がかかります。(過冷却現象)
 
-Konfigurasi awal disiapkan dengan langkah-langkah berikut:
+そこで、融点を推定したい場合には、あらかじめ氷と水が共存する状態を準備します。こうすれば、設定した温度が融点よりも高ければ、氷は徐々に融けていきますし、低ければ氷の成長が見られます。
 
-1. Gunakan alat [GenIce](https://github.com/vitroid/GenIce) untuk membuat struktur kristal es. Kristal dibuat dalam bentuk balok panjang dengan rasio 1:1:2.
-2. "Tetapkan" setengah dari molekul air. Ini berarti mereka tidak bisa bergerak dari posisi awal mereka.
-3. Naikkan suhu hingga 800 K dan lakukan simulasi dinamika molekuler singkat. Bagian yang ditetapkan akan mempertahankan strukturnya, tetapi molekul air lainnya akan segera meleleh.
-4. Kembalikan suhu dan lepaskan fiksasi. Ini menghasilkan struktur awal dengan setengah cairan dan setengah padat.
-5. Lakukan simulasi selama beberapa waktu pada sekitar 270 K (titik leleh) dengan fiksasi dilepas untuk merelaksasi struktur.
+<!-- さらに、氷と水の界面が平坦であることも重要な条件です。もし、2つの相の間の界面が湾曲している場合、そこにはLaplace圧という圧力が生まれます。要するに、こちらが圧力を指示しても、界面が曲がることで圧力が変わってしまい、指示した圧力のもとでの融点がきちんと推定できない、ということになります。 -->
+
+初期配置は、次の手順で準備します。
+
+1. [GenIce](https://github.com/vitroid/GenIce)ツールを使い、氷の結晶構造を作ります。結晶は1:1:2の長い直方体形状になるようにします。
+2. 水分子の半分を「固定」します。文字通り、最初の場所から動けなくします。
+3. 温度を800 Kまで上げて、短い分子動力学シミュレーションを行います。固定した部分は構造を保ちますが、それ以外の水分子はすぐに融解します。
+4. 温度を戻し、固定を解除します。これにより、液体と固体が半分ずつの初期構造ができます。
+5. 固定を解除した状態で、270 K(融点)付近でしばらくシミュレーションを行い、構造を緩和させます。
 
 ![Alt text](https://i.gyazo.com/bb923db531fb195e68574f636c4c1ef1.png)
 
-> Es yang setengah meleleh. Bagian es di tengah ditetapkan dan tidak bergerak. Karena kondisi batas periodik, ujung kiri dan kanan, atas dan bawah, depan dan belakang masing-masing terhubung dan molekul dapat keluar masuk.
+> 半分が融けた氷。中央の氷部分は固定されていて動かない。周期境界条件なので、左端と右端、上端と下端、手前と奥はそれぞれつながっていて分子が出入りできる。
 
-Berikut adalah langkah-langkah spesifik:
+以下に、具体的な手順を書きます。
 
-### 2-1 Membuat kristal es
+### 2-1 氷の結晶を作る
 
-[GenIce](https://github.com/vitroid/GenIce) adalah alat untuk menghasilkan berbagai struktur kristal es. Kita akan menggunakannya untuk menghasilkan es Ih (es I heksagonal, jenis es yang paling umum ditemui).
+[GenIce](https://github.com/vitroid/GenIce)は、さまざまな氷の結晶構造を生成するツールです。これを用い、氷Ih(こおりいちえいち、六方晶氷I、もっとも身近に存在する氷)を生成します。
 
-Masukkan yang berikut di Terminal:
+ターミナルで以下のように入力します。
 
 ```shell
 genice2 1h -r 4 4 6 -w tip4p > ice.gro
 ```
 
-Opsi `-r` menentukan berapa banyak sel satuan yang akan disusun dalam arah x, y, dan z. Opsi `-w` menentukan jenis model molekul air.
+`-r`オプションで、単位胞をx,y,z方向にいくつならべるかを指定しています。また、`-w`で水分子モデルの種類を指定します。
 
-Di akhir `ice.gro`, ukuran kotak ditulis dalam satuan nm seperti ini:
-
+`ice.gro`の末尾には、こんな風に箱の大きさがnm単位で書かれています。
 ```
 ...
  1535ICE    HW1 6138   3.090   2.720   5.304
@@ -140,27 +144,25 @@ Di akhir `ice.gro`, ukuran kotak ditulis dalam satuan nm seperti ini:
     3.12913551 2.94142906 5.42191111
 ```
 
-Ini adalah sel dengan dimensi 3,1 nm, 2,9 nm, dan 5,4 nm dalam arah sumbu x, y, dan z, sedikit lebih panjang dalam arah z.
+x, y, z軸方向の寸法がそれぞれ3.1 nm, 2.9 nm, 5.4 nmで、z方向に少し長いセルです。
 
-Mari kita visualisasikan struktur ini untuk sementara. Klik kanan `ice.gro` di browser file di sisi kiri jendela VSCode dan unduh. Buka file tersebut dengan VMD.
+とりあえず、この構造を可視化してみましょう。VSCodeのウィンドウ左側のファイルブラウザで`ice.gro`を右クリックし、ダウンロードします。そのファイルをVMDで開きます。
 
 ![ice Ih](https://i.gyazo.com/d30d131bc64aaf09ab4a7e356bf0b299.png)
 
-### 2-2 Menetapkan molekul
 
-`Gromacs` memiliki fitur untuk membuat atom tidak bergerak dengan menentukan nomor atomnya. Karena akan merepotkan untuk menentukan secara manual, kita akan menggunakan skrip Python untuk menetapkan hanya atom-atom dengan koordinat Z kurang dari 2,7 nm.
+### 2-2 分子を固定する
 
-#### 2-2-1 Memberi indeks pada atom
+`Gromacs`には、原子の番号を指定して、その原子を動けなくする機能があります。手で指定するのはたいへんなので、pythonスクリプトをつかって、Z座標が2.7 nm未満の原子だけを固定します。
 
-Perintah make_ndx dari Gromacs menghasilkan file `.ndx` yang mengklasifikasikan atom berdasarkan jenisnya.
+#### 2-2-1 原子にインデックスをつける
 
-Jalankan:
+Gromacsのmake_ndxコマンドは、原子を種類ごとに分類した`.ndx`ファイルを生成します。
 
 ```shell
 gmx make_ndx -f ice.gro -o ice.ndx
 ```
-
-dan tekan q ketika prompt ditampilkan untuk keluar. ice.ndx akan berisi konten seperti berikut:
+を実行し、promptが表示されたら、qを押して終了します。ice.ndxには以下のような内容が書かれます。
 
 ```
 [ System ]
@@ -170,19 +172,19 @@ dan tekan q ketika prompt ditampilkan untuk keluar. ice.ndx akan berisi konten s
 ...
 ```
 
-File ini mengelompokkan atom-atom. Grup System berisi semua atom.
+このファイルには、原子がグループ分けされています。Systemグループには、全原子が属しています。
 
-Mari kita siapkan grup FIX baru yang berisi daftar atom yang ingin kita tetapkan dengan cara yang sama.
+同じ要領で、固定したい原子だけを列挙したFIXグループを新たに自分で準備しましょう。
 
-#### 2-2-2 Menambahkan indeks atom yang ditetapkan
+#### 2-2-2 固定した原子のインデックスを追加する
 
-Tambahkan indeks atom yang ingin ditetapkan ke akhir file ini.
+このファイルの末尾に、固定したい原子のインデックスを追加します。
 
 ```shell
 python3 zfix.py 2.0 3.4 < ice.gro >> ice.ndx
 ```
 
-Ini akan menambahkan baris-baris berikut ke akhir file `ice.ndx`:
+これにより、`ice.ndx`ファイルの末尾に、以下のような行が追加されます。
 
 ```
 ...
@@ -196,44 +198,44 @@ Ini akan menambahkan baris-baris berikut ke akhir file `ice.ndx`:
 ...
 ```
 
-### 2-3 Melelehkan setengah sisanya
+### 2-3 残り半分を融かす
 
-Kita akan menaikkan suhu hingga 800 K sambil menjaga volume tetap. Biasanya ini akan menyebabkan pendidihan, tetapi karena tidak bisa mengembang, air hanya akan menjadi cair. Langkah ini hanya untuk merusak struktur, jadi tidak perlu dijalankan terlalu lama.
+体積一定のままで、温度を800 Kまで上げます。普通なら沸騰しそうなものですが、膨張できないので、液体になるだけでとまります。このステップは、ただ構造を壊したいだけなので、長時間実行する必要はありません。
 
-Eksekusi metode dinamika molekuler di Gromacs selalu terdiri dari tiga langkah:
+Gromacsでの分子動力学法の実行は、いつも3段階の手順になります。
 
-1. "Kompilasi" file konfigurasi untuk mengubahnya menjadi format data yang mudah dibaca oleh Gromacs.
-2. Membaca data tersebut dan menjalankan simulasi dinamika molekuler utama (mdrun).
-3. Mengubah data yang dihasilkan menjadi format yang mudah dibaca manusia.
+1. 設定ファイルを「コンパイル」して、Gromacsが読みやすいデータ形式に変換する。
+2. そのデータを読みこんで、分子動力学シミュレーションの本体(mdrun)を実行する。
+3. 生成したデータを、人間が読みやすいように変換する。
 
-#### 2-3-1 Kompilasi
+#### 2-3-1 コンパイル
 
-File dengan ekstensi `.mdp` berisi detail tentang bagaimana melakukan dinamika molekuler. Penjelasan untuk masing-masing parameter ditulis sebagai komentar dalam file `fix.mdp`. Hampir semua informasi selain konfigurasi molekul dan interaksi, seperti waktu perhitungan, interval perekaman, pengaturan suhu, pengaturan tekanan, dll., ditulis dalam `.mdp`. Dalam kasus `fix.mdp`, selain itu juga ada instruksi untuk menetapkan grup atom `FIX` yang ditentukan dalam file `.ndx`.
+拡張子`.mdp`には、分子動力学の実施方法を詳細に記載します。個々のパラメータの説明は、`fix.mdp`ファイルにコメントとして書きこんであります。計算時間、記録間隔、温度設定、圧力設定など、分子配置と相互作用以外のほぼすべての情報は`.mdp`に書きます。`fix.mdp`の場合、それらに加えて`.ndx`ファイルで指定した`FIX`原子グループを固定することを指示します。
 
-Kompilasi ini dengan perintah berikut untuk membuat file `.tpr`:
+以下のコマンドでこれをコンパイルして、`.tpr`ファイルを作ります。
 
 ```shell
-gmx grompp -maxwarn 1 -f fix.mdp -p ice.top -c ice.gro -n ice.ndx -o fixed.tpr
+gmx grompp -maxwarn 1 -f fix.mdp -p ice.top -c ice.gro -n ice.ndx   -o fixed.tpr
 ```
 
-Ini akan membuat file `fixed.tpr` yang akan dibaca oleh Gromacs.
+これにより、Gromacsが読みこむファイル`fixed.tpr`ができました。
 
-#### 2-3-2 Eksekusi
+#### 2-3-2 実行
 
-Sekarang kita akan menjalankan simulasi dengan membaca 00001.tpr yang dibuat di 2-3-1!
+2-3-1で作った00001.tprを読みこんでシミュレーションを実行します!
 
 ```shell
 gmx mdrun -deffnm fixed
 ```
 
-Ketika ini dijalankan, banyak file lain yang dimulai dengan `fixed.` akan dihasilkan. (-deffnm kemungkinan adalah singkatan dari default file name, yang menginstruksikan untuk menambahkan `fixed.` ke semua file output yang tidak ditentukan secara eksplisit.)
+これを実行すると、ほかにも`fixed.`からはじまるたくさんのファイルが生成されます。(-deffnmは、たぶんdefault file nameの略で、明示的に指定しなかった出力ファイルには全部`fixed.`をつけて下さい、と指示しています。)
 
-- `fixed.cpt`: File checkpoint, diperlukan untuk melanjutkan perhitungan.
-- `fixed.edr`: File yang berisi informasi statistik seperti suhu dan tekanan.
-- `fixed.trr`: Data koordinat dan kecepatan atom (disebut trajektori).
-- `fixed.log`: Catatan lainnya. Waktu eksekusi juga dicatat dalam file ini.
+* `fixed.cpt`: チェックポイントファイル、続きの計算を行うのに必要なファイル。
+* `fixed.edr`: 温度や圧力などの、統計情報が含まれるファイル。
+* `fixed.trr`: 原子の座標や速度のデータ(トラジェクトリと呼ばれる)。
+* `fixed.log`: その他の記録。実行時間などもこのファイルに記録される。
 
-Di bagian akhir `fixed.log`, informasi waktu eksekusi dicatat seperti berikut:
+`fixed.log`の末尾には以下のように実行時間の情報が記録されます。
 
 ```
 starting mdrun 'water TIP4P/Ice'
@@ -247,68 +249,74 @@ Writing final coordinates.
 Performance:       87.185        0.275
 ```
 
-Ini adalah kasus yang dijalankan di MacBook Air, dan kita dapat melihat bahwa:
+これはMacBook Airで実行したケースですが、
 
-- Menggunakan 800% CPU (menggunakan 8 core)
-- 50000 langkah dijalankan. Karena 1 langkah adalah 0,002 ps, simulasi 100 ps telah dilakukan.
-- Waktu yang dibutuhkan adalah 100 detik. Pada kecepatan ini, perhitungan untuk 90 ns dapat dilakukan dalam satu hari.
+* CPUを800%使っている(8 coreを使用している)
+* 50000ステップ実行した。1ステップが0.002 psなので、100 psのシミュレーションが行われた。
+* かかった時間は100秒。このペースだと一日で90 ns分の計算ができる。
 
-#### 2-3-3 Konfirmasi
+といったことが読みとれます。
 
-Mari kita visualisasikan gerakan molekul menggunakan alat visualisasi hasil simulasi [VMD](https://www.ks.uiuc.edu/Research/vmd/alpha/).
 
-Pertama, kita akan mengubah konfigurasi molekul yang diperoleh dari perhitungan dinamika molekuler menjadi format yang mudah divisualisasikan.
+#### 2-3-3 確認
+
+シミュレーション結果を可視化するツール[VMD](https://www.ks.uiuc.edu/Research/vmd/alpha/)を使い、分子運動を可視化してみましょう。
+
+まず、分子動力学計算で得られた分子配置を、可視化しやすいように変換します。
 
 ```shell
-gmx trjconv -f fixed.trr -s fixed.tpr -pbc whole -o fixed-snapshots.gro
+gmx trjconv -f fixed.trr -s fixed.tpr -pbc whole   -o fixed-snapshots.gro
 ```
 
-Ketika diminta input, tekan 0 dan kemudian enter. (Ini akan memvisualisasikan seluruh Sistem)
+入力を求められたら、0を押してリターンを押します。(System全体を可視化します)
 
-Ini akan membuat file `fixed-snapshots.gro`. Ini adalah file yang cukup besar.
+これで、`fixed-snapshots.gro`ファイルができました。かなり大きなファイルです。
 
-1. Di VSCode, klik kanan `fixed-snapshots.gro` dan unduh.
-2. Buka VMD.
-3. Seret dan lepas file yang diunduh ke jendela Utama VMD.
 
-Anda akan melihat bahwa molekul di bagian yang ditetapkan sama sekali tidak bergerak. Di sisi lain, bagian yang tidak ditetapkan menjadi benar-benar acak.
+
+1. VSCodeで、`fixed-snapshots.gro`を右クリックしてダウンロードします。
+2. VMDを起動します。
+3. Downloadしたファイルを、VMDのMainウィンドウにドラッグアンドドロップします。
+
+固定した部分は、分子はびくとも動いていないことがわかります。一方、固定していない部分は完全にランダムになっています。
 
 ![Alt text](https://i.gyazo.com/bb923db531fb195e68574f636c4c1ef1.png)
+)
 
-#### 2-3-4 Relaksasi
+#### 2-3-4 緩和
 
-Kita akan menurunkan suhu, melepaskan fiksasi atom, dan membiarkan struktur berelaksasi. Pada saat ini, kita juga akan memungkinkan volume berubah, dan beralih ke simulasi tekanan konstan.
+温度を下げ、原子の固定をはずして、構造を緩和させます。この時に、体積も変化できるようにし、圧力一定でのシミュレーションに切り替えます。
 
-Seperti sebelumnya, pengaturan simulasi ditulis dalam `.mdp`. Kali ini kita akan menggunakan `relax.mdp`.
+シミュレーションの設定はさきほどと同じく、`.mdp`に書きます。今回は`relax.mdp`を使用します。
 
-Anda dapat menggunakan [fitur perbandingan file VSCode](https://www.mytecbits.com/microsoft/dot-net/compare-contents-of-two-files-in-vs-code) untuk melihat perbedaan antara `relax.mdp` dan `fix.mdp`.
+[VSCodeのファイル比較機能](https://www.mytecbits.com/microsoft/dot-net/compare-contents-of-two-files-in-vs-code)を使うと、`relax.mdp`と`fix.mdp`の違いがわかります。
 
-Ada tiga perubahan:
+変更されているのは3点。
 
-1. Suhu diturunkan menjadi 270 K.
-2. Beralih dari volume konstan ke tekanan konstan.
-3. Fiksasi molekul dilepaskan.
+1. 温度が270 Kに下げられた。
+2. 体積一定から圧力一定に切り替えた。
+3. 分子の固定を外した。
 
-Mari kita kompilasi lagi menggunakan ini dan jalankan.
+これを使って、またコンパイルし、実行します。
 
 ```shell
-gmx grompp -maxwarn 1 -f relax.mdp -p ice.top -c fixed.tpr -t fixed.cpt -o relaxed.tpr
+gmx grompp -maxwarn 1 -f relax.mdp -p ice.top  -c fixed.tpr -t fixed.cpt   -o relaxed.tpr
 gmx mdrun -deffnm relaxed
 ```
 
-Seperti di 2-3-3, buatlah `relaxed.gro` dan amati dengan VMD. Kali ini, Anda akan melihat bahwa molekul di bagian es juga bergetar sedikit.
+2-3-3と同じように、`relaxed.gro`を作って、VMDで観察して下さい。今度は、氷の部分の分子もぷるぷると振動していることがわかります。
 
 ```shell
-gmx trjconv -f relaxed.trr -s relaxed.tpr -pbc whole -o relaxed-snapshots.gro
+gmx trjconv -f relaxed.trr -s relaxed.tpr -pbc whole   -o relaxed-snapshots.gro
 ```
 
-## 2.5 Menambahkan fase gas
+## 2.5 気相を追加
 
-Kita akan memperpanjang sel dan menyiapkan area untuk fase gas.
+セルを伸長し、気相の領域を準備します。
 
-Salin `relaxed.gro` dan simpan dengan nama `stretch.gro`.
+`relaxed.gro`をコピーして`stretch.gro`という名前で保存します。
 
-Perbesar ukuran z di bagian akhir `stretch.gro` sekitar 2 kali lipat (tidak perlu terlalu tepat).
+`stretch.gro`末尾のセルサイズのz方向のサイズを、2倍ていど(だいたいでいい)に伸ばします。
 
 ```
  1536water   OW 6141   1.862   2.746   5.038  0.2622  0.0469  0.2826
@@ -318,127 +326,126 @@ Perbesar ukuran z di bagian akhir `stretch.gro` sekitar 2 kali lipat (tidak perl
    3.14308   2.95454   10
 ```
 
-Kemudian, kita akan merelaksasi struktur lagi, tetapi kali ini tanpa mengubah volume. Pengaturan ini ditulis dalam `stretch.mdp`.
+そして、再度構造緩和させますが、今回は体積を変化させないようにします。この設定は`stretch.mdp`に書いてあります。
 
-Gunakan [fitur perbandingan file VSCode](https://www.mytecbits.com/microsoft/dot-net/compare-contents-of-two-files-in-vs-code) untuk membandingkan `relax.mdp` dan `stretch.mdp`.
+[VSCodeのファイル比較機能](https://www.mytecbits.com/microsoft/dot-net/compare-contents-of-two-files-in-vs-code)で、`relax.mdp`と`stretch.mdp`を比べて下さい。
 
-Mari kita kompilasi dan jalankan lagi.
+またコンパイルし、実行します。
 
 ```shell
-gmx grompp -maxwarn 1 -f stretch.mdp -p ice.top -c stretch.gro -o stretched.tpr
+gmx grompp -maxwarn 1 -f stretch.mdp -p ice.top -c stretch.gro    -o stretched.tpr
 gmx mdrun -deffnm stretched
 ```
 
-Konfirmasi dengan VMD bahwa sistem telah stabil dengan tiga fase yang ada bersama.
+ちゃんと三相共存で安定化していることをVMDで確認します。
 
 ```shell
-gmx trjconv -f stretched.trr -s stretched.tpr -pbc whole -o stretched.gro
+gmx trjconv -f stretched.trr -s stretched.tpr -pbc whole   -o stretched.gro
 ```
 
-## 3. Melakukan simulasi pada suhu target
 
-Menggunakan struktur yang dibuat di 2.5 sebagai konfigurasi awal, kita akan melakukan simulasi jangka panjang pada berbagai suhu.
+## 3. 目標とする温度で、シミュレーションを行う
 
-Target tekanan adalah 1 atmosfer, dan waktu simulasi adalah 3-10 ns. Dalam simulasi ini, kita menggunakan dt=0.002 ps, jadi 1 ns setara dengan 500.000 langkah.
+2.5で作った構造を初期配置とし、いろんな温度で長時間のシミュレーションを行います。
 
-Di sini, sebagai contoh, kita akan menjelaskan perhitungan pada 250 K. Ini 20 K lebih rendah dari titik leleh TIP4P/Ice [^1], jadi es diharapkan akan segera tumbuh. (Untuk suhu selain 250 K, silakan sesuaikan sesuai kebutuhan.)
+圧力は1気圧、シミュレーション時間は3〜10 nsを目標とします。このシミュレーションではdt=0.002 psとしていますので、1 nsは500 000ステップに相当します。
 
-### 3-1 Persiapan lingkungan kerja
+ここでは例として、250 Kでの計算を解説します。これは、TIP4P/Iceの融点[^1]に対して20 Kも低温なので、氷はただちに成長すると予想されます。(250 K以外の温度の場合は適宜読みかえて下さいね。)
 
-Buka file pengaturan perhitungan berkelanjutan `continue.mdp` di VSCode, ubah pengaturan suhu menjadi 250 K seperti yang ditunjukkan di bawah ini, dan **simpan dengan nama file yang berbeda** sebagai `T250.mdp`.
+### 3-1 作業環境の準備
 
-```
-...
-
-ref_t                    = xxxx      ; Suhu sistem. Satuan dalam K.
-
-...
-```
-
-Juga, di bagian awal `T250.mdp`, ada instruksi untuk jumlah langkah perhitungan. Jumlah langkah yang diperlukan berbeda untuk suhu rendah dan tinggi. Untuk saat ini, kita akan melakukan simulasi 3 ns untuk 280 K ke atas, dan 10 ns untuk di bawah itu, jadi silakan ubah bagian itu sesuai kebutuhan.
+継続計算用の設定ファイル`continue.mdp`をVSCodeで開き、下に示すように温度設定を250 Kに修正して、ファイル名は`T250.mdp`として**別名で保存**します。
 
 ```
 ...
 
-nsteps                   = 5000000     ; Jumlah langkah MD.
-nstxout                  = 5000        ; Koordinat dioutput setiap nstxout langkah.
-nstlog                   = 5000        ; Frekuensi informasi ditulis ke log.
+ref_t                    = xxxx      ; 系の温度。単位はK。
 
 ...
 ```
 
-Bandingkan `relax.mdp` dan `continue.mdp`.
+また、`T250.mdp`のはじめの方に、計算ステップ数の指示があります。低温と高温では必要なステップ数が違います。とりあえず、280 K以上では3 ns、それ未満では10 nsのシミュレーションを行いますので、適宜その部分も書きかえて下さい。
 
-### 3-2 Menjalankan simulasi
+```
+...
 
-Kemudian, kompilasi file pengaturan. Kita akan menamai file yang dihasilkan `T250.tpr`.
+nsteps                   = 5000000     ; MDのステップ数。
+nstxout                  = 5000        ; 座標がnstxoutステップに一度出力される。
+nstlog                   = 5000        ; logに情報が書き込まれる頻度。
+
+...
+```
+
+
+`relax.mdp`と`continue.mdp`を比較して下さい。
+
+### 3-2 シミュレーションの実行
+
+そして、設定ファイルをコンパイルします。生成するファイル名は`T250.tpr`としました。
 
 ```shell
-gmx grompp -maxwarn 1 -f T250.mdp -p ice.top -c relaxed.tpr -t relaxed.cpt -o T250.tpr
+gmx grompp -maxwarn 1 -f T250.mdp -p ice.top  -c relaxed.tpr -t relaxed.cpt   -o T250.tpr
 ```
 
-Jalankan!
+実行!
 
 ```shell
 gmx mdrun -deffnm T250 -nt 8
 ```
 
-Kita menentukan jumlah proses paralel dengan `-nt 8`. (Jika tidak ditentukan, kadang-kadang ada kasus yang menghasilkan error di tengah jalan. Tapi mungkin tidak diperlukan.) Dalam praktikum ini, kita menggunakan komputer dengan 32 core, jadi bisa menentukan hingga 32, tetapi karena ada kemungkinan semua orang menjalankan secara bersamaan, harap batasi hingga 8 atau 16 ketika sedang sibuk.
+並列処理の数`-nt 8`を指定しています。(つけないと途中でエラーを出すケースがありました。でも要らないかも。) 実習では32 coreの計算機を利用するので、最大32まで指定できますが、みんなで同時に実行する可能性があるので、混んでいる時は8または16にとどめて下さい。
 
-Ini seharusnya memakan waktu 30 sampai 100 kali lebih lama dari sebelumnya. Mari kita tunggu dengan sabar sambil minum kopi.
+さっきの30倍〜100倍の時間がかかるはずです。コーヒーでも飲んで、気長に待ちましょう。
 
-### 3-3 Perpanjangan
+### 3-3 延長
 
-Jika dalam analisis selanjutnya ternyata waktu simulasi masih kurang, kita bisa memperpanjang perhitungan dengan cara berikut.
+あとの解析で、まだシミュレーションの時間が足りないことがわかった場合は、次のようにして計算を延長することができます。
 
-Pertama, berdasarkan file `.tpr` yang dihasilkan oleh `grompp` sebelumnya, kita buat file `.tpr` baru dengan waktu eksekusi yang diperpanjang. Opsi `-extend` menentukan waktu tambahan perhitungan dalam satuan ps. Kita akan memperpanjang 2000 ps = 1 ns.
+まず、さきほど`gromppp`で生成した`.tpr`ファイルをもとに、実行時間を延長した新しい`.tpr`ファイルを作成します。 `-extend`オプションは追加計算する時間をps単位で指定します。2000 ps=1 nsだけ延長します。
 
 ```shell
 gmx convert-tpr -extend 2000 -s T250.tpr -o extended.tpr
 ```
 
-Kemudian jalankan! (Untuk perhitungan lanjutan, sepertinya perlu menentukan beberapa opsi.)
+そして実行! (継続計算の場合は、オプションをいろいろ指定する必要があるようです。)
 
 ```shell
 gmx mdrun -deffnm extended -cpi T250.cpt -s extended.tpr -noappend
 ```
 
-Kali ini mungkin memakan waktu cukup lama untuk bisa makan.
+こんどは食事ができるぐらい時間がかかるかもしれません。
 
-## 4. Visualisasi hasil
+## 4. 結果の可視化
 
-Untuk mengonfirmasi apa yang sebenarnya terjadi, mari kita transfer data koordinat molekul ke komputer lokal dan tampilkan gerakan molekul menggunakan VMD.
+実際にどんなことが起こっているのかを確認するために、分子座標データを手許のコンピュータに転送し、VMDで分子運動を表示させてみましょう。
 
-Pertama, kita ubah data trajektori `.trr` menjadi format `.gro`.
+まず、トラジェクトリデータ`.trr`を、`.gro`形式に変換します。
 
 ```shell
 gmx trjconv -f T250.trr -s T250.tpr -pbc whole -o T250-snapshots.gro
 ```
 
-Unduh ini dan buka dengan VMD.
+これをDownloadし、VMDで開きます。
 
-Dengan perhitungan 1 ns, mungkin sulit untuk menentukan apakah sedang meleleh atau membeku, tetapi dengan perhitungan 10 ns, biasanya bisa ditentukan.
+1 nsの計算では、融解しつつあるのか凍結しつつあるのか判別が難しい場合がありますが、10 ns計算すれば、おおよそ判別がつきます。
 
-Menurunkan suhu tidak selalu berarti pembekuan lebih cepat, karena pada suhu rendah, gerakan molekul menjadi lebih lambat, yang juga memperlambat pertumbuhan kristal. Cobalah beberapa suhu untuk menemukan suhu di mana pembekuan terjadi paling cepat.
+温度を下げればより速く凍るか、というとそうでもなくて、温度が低いと分子運動が遅くなるせいで、結晶成長も遅くなります。速く凍る温度を見付けるために、いくつかの温度で試して下さい。
 
-## 5. Analisis
 
-### 5.1 Jumlah ikatan hidrogen melintang
+## 5. 解析
 
-Dalam es yang sepenuhnya memenuhi aturan es dan tidak terpolarisasi, jumlah ikatan masuk dan keluar yang melintasi bidang apapun seharusnya sama.
 
-Kita akan memeriksa keseimbangan jumlah ikatan hidrogen.
+### 5.1 横断水素結合数
+完全にアイスルールを満足する、分極のない氷であれば、どのような断面で切っても、その面を横切る入出結合本数は等しくなるはずです。
 
-`hbbalance.py` memotong sel simulasi dalam arah sumbu z dengan interval 0,01 nm dan menghitung jumlah ikatan hidrogen yang melintasi setiap bidang irisan.
+水素結合数のバランスを確認します。
 
-Jalankan:
+`hbbalance.py`は、シミュレーションセルをz軸方向に0.01 nm単位でスライスし、各スライス面を横切る水素結合の本数を数えます。
 
 ```
 python3 hbbalance.py < T250.gro
 ```
-
-Ini akan menghasilkan file (dengan ekstensi `.hbb.txt`) sebanyak jumlah frame dalam `.gro`. Isinya seperti ini:
-
+を実行すると、`.gro`に含まれているフレーム数分のファイル(拡張子`.hbb.txt`)が生成されます。中身は以下のような感じです。
 ```
 0.0 -2.0 1.0 3.0
 0.01 -4.0 9.0 13.0
@@ -451,25 +458,20 @@ Ini akan menghasilkan file (dengan ekstensi `.hbb.txt`) sebanyak jumlah frame da
 0.08 -2.0 41.0 43.0
 ...
 ```
+第1カラムがスライス面のz座標、第3カラムが面を正方向に横切る水素結合の本数、第4カラムが負方向に横切る水素結合の本数、第2カラムがそれらの差です。
 
-Kolom pertama adalah koordinat z dari bidang irisan, kolom ketiga adalah jumlah ikatan hidrogen yang melintasi bidang ke arah positif, kolom keempat adalah jumlah yang melintasi ke arah negatif, dan kolom kedua adalah selisih antara keduanya.
+アイスルールが満足され、全分極が0の氷であれば、この値はどこの面で切っても必ず0になるはずです。逆に言えば、この指標が0でなければ、アイスルールが満足されていないか、全分極が非0であることを意味します。
 
-Dalam es yang memenuhi aturan es dan memiliki polarisasi total nol, nilai ini seharusnya selalu 0 tidak peduli di mana bidang dipotong. Sebaliknya, jika indikator ini tidak nol, itu berarti aturan es tidak terpenuhi atau polarisasi total tidak nol.
+### 5.2 環位相統計
 
-### 5.2 Statistik fase cincin
+成長して生じた氷が、均質な水素無秩序氷と言えるかどうかを、環位相統計で調べます。
 
-Kita akan menggunakan statistik fase cincin untuk menentukan apakah es yang tumbuh dapat disebut es tak teratur hidrogen yang homogen.
-
-`cycles.py` mengklasifikasikan semua cincin enam anggota irredusibel (cincin 6 anggota yang tidak dapat dinyatakan sebagai kombinasi cincin yang lebih kecil) dalam jaringan ikatan hidrogen berdasarkan arah ikatan hidrogen dan menghitung jumlahnya.
-
-Jalankan:
+`cycles.py`は、水素結合ネットワークのなかにあるすべての既約六員環(より小さい環の組みあわせで表現できない6員環)を、水素結合の向きで分類し個数を数えます。
 
 ```
 python3 cycles.py < T250.gro
 ```
-
-Ini akan menghasilkan file (dengan ekstensi `.cyc.txt`) sebanyak jumlah frame dalam `.gro`. Isinya seperti ini:
-
+を実行すると、`.gro`に含まれているフレーム数分のファイル(拡張子`.cyc.txt`)が生成されます。中身は以下のような感じです。
 ```
 0 276 291.94520547945206
 1 423 437.917808219178
@@ -481,97 +483,88 @@ Ini akan menghasilkan file (dengan ekstensi `.cyc.txt`) sebanyak jumlah frame da
 21 4 4.561643835616438
 ```
 
-Kolom pertama adalah fase, kolom kedua adalah frekuensi kemunculan dalam file `.gro`, kolom ketiga adalah distribusi ideal untuk jumlah total cincin yang sama dengan kolom kedua.
+第1カラムが位相、第2は`.gro`ファイル内での出現頻度、第3カラムは、第二カラムと同じ環総数の場合の理想分布。
 
-Dalam konfigurasi awal, ada daerah cair yang juga mengandung cincin enam anggota, jadi jumlah total ini mencakup jumlah cincin enam anggota dalam cairan. Dalam es yang dihasilkan oleh GenIce, jumlah cincin per jenis harus cocok dengan distribusi ideal (lihat lampiran terpisah), dan tidak ada alasan distribusi dalam cairan menyimpang dari distribusi ideal, jadi distribusi jenis cincin dalam konfigurasi awal diharapkan hampir cocok dengan distribusi ideal. Di sisi lain, jika jenis cincin tertentu cenderung terbentuk lebih banyak selama pertumbuhan es, distribusi ini akan menyimpang dari distribusi ideal seiring pertumbuhan kristal.
+初期配置では液体領域があり、その中にも六員環が存在するので、この総数は液体の六員環の数も含んでいます。GenIceで生成した氷では、種類別の環の個数は理想分布(別紙)に一致し、液体の場合も理想分布から外れる理由がないので、初期配置での環種分布は理想分布にほぼ一致すると思われます。一方、氷が成長する間に、偏った種類の環が多めに生じるなら、結晶成長につれてこの分布は理想分布からずれてくるでしょう。
 
-Cara untuk mengurutkan beberapa file `.cyc.txt` dan hanya mencantumkan jumlah cincin dengan fase 3. Misalnya, skrip berikut akan mengurutkan 10~10000.cyc.txt (setiap 10) secara berurutan dan hanya mengekstrak informasi fase 3:
-
+複数の`.cyc.txt`ファイルを並べて、位相3の環の個数だけを列挙する方法。例えば、以下のスクリプトで、10〜10000.cyc.txt(10個おき)を順番にならべ、位相3の情報だけを抽出できます。
 ```shell
 seq 1 1000 | sed -e 's/$/0.cyc.txt/' | xargs cat | grep '^3 ' > cyclestat.3.txt
 ```
+分解して説明します。
+* `seq 1 1000`は、1〜1000の数列を標準出力します。
+* `sed -e 's/$/0.cyc.txt/'`は、標準入力の行末(`$`)を、`0.cyc.txt`に置きかえ標準出力します。
+* `xargs cat`は、標準入力の内容を`cat`コマンドの引数とみなして実行します。これで、10〜10000.cyc.txtが順番に並んだ大きなテキストファイルが標準出力されます。
+* `grep '^3 '`は、標準入力の内容のうち、行頭が`3 `ではじまる行だけを抽出します。
 
-Mari kita uraikan:
+この結果を`gnuplot`で見れば、環数の時間変化がよみとれます。
 
-- `seq 1 1000` menghasilkan urutan angka 1~1000 ke output standar.
-- `sed -e 's/$/0.cyc.txt/'` mengganti akhir baris (`$`) input standar dengan `0.cyc.txt` dan mengirimkannya ke output standar.
-- `xargs cat` memperlakukan konten input standar sebagai argumen untuk perintah `cat`. Ini akan menghasilkan file teks besar yang berisi 10~10000.cyc.txt secara berurutan ke output standar.
-- `grep '^3 '` mengekstrak hanya baris yang dimulai dengan `3 ` dari input standar.
 
-Jika Anda melihat hasil ini dengan `gnuplot`, Anda dapat melihat perubahan jumlah cincin dari waktu ke waktu.
+## 6. 成長面のいれかえ
 
-## 6. Mengganti orientasi permukaan pertumbuhan
+GenIceで生成したIh構造は、z軸方向がプリズム面$(1010)$ですらなく、$(11\bar 20)$方向となっているようだ。成長方向をベーサル面$(0001)$またはプリズム面にするためには、z軸とxまたはy軸を交換する必要がある。
 
-Struktur Ih yang dihasilkan oleh GenIce tampaknya memiliki arah $(11\bar 20)$ pada sumbu z, bukan permukaan prisma $(1010)$. Untuk mengubah arah pertumbuhan menjadi permukaan basal $(0001)$ atau permukaan prisma, kita perlu menukar sumbu z dengan sumbu x atau y.
-
-GenIce memiliki fungsi untuk mengubah orientasi sel satuan. Misalnya, operasi menukar sumbu x dan z dapat ditulis dalam bentuk matriks sebagai berikut:
-
+GenIceには、単位胞の向きを変える機能がある。例えば、x軸とz軸を交換する操作は、行列で書けば、次のようになる。
 $$\left(\begin{matrix}0& 0&1\\0&1&0\\1&0&0 \end{matrix}\right)$$
-
-Demikian pula, menukar sumbu y dan z dapat ditulis sebagai berikut:
-
+同様に、y軸とz軸の交換は次のようになる。
 $$\left(\begin{matrix}1& 0&0\\0&0&1\\0&1&0 \end{matrix}\right)$$
 
-GenIce memiliki fungsi untuk membaca informasi struktur kristal, mengubahnya, dan menghasilkan plugin struktur kristal baru. → [https://github.com/vitroid/GenIce/wiki/Transform-the-unit-cell](https://github.com/vitroid/GenIce/wiki/Transform-the-unit-cell)
+GenIceには、結晶構造の情報を読みこみ、変形させて新たな結晶構造プラグインを生成する機能がある。→[https://github.com/vitroid/GenIce/wiki/Transform-the-unit-cell](https://github.com/vitroid/GenIce/wiki/Transform-the-unit-cell)
 
-Jika Anda menyimpan plugin yang baru dibuat di `lattices`, Anda dapat menggunakannya untuk menghasilkan struktur kristal yang diubah.
-
+新たに生成したプラグインを`lattices`に格納しておくと、それを使って変形した結晶構造を生成できる。
 ```shell
 mkdir lattices
 genice2 1h -f 'reshape[0,0,1,0,1,0,1,0,0]' > lattices/1hprism.py
 genice2 1h -f 'reshape[1,0,0,0,0,1,0,1,0]' > lattices/1hbasal.py
 ```
-
-Ini membuat plugin struktur kristal baru, yang kemudian dapat digunakan untuk menghasilkan kristal.
-
+で、新たな結晶構造プラグインを作り、これを使って結晶を生成する。
 ```shell
 genice2 1hbasal -r 4 4 6 -w tip4p > basal.gro
 genice2 1hprism -r 4 4 6 -w tip4p > prism.gro
 ```
 
-Untuk konfirmasi, mari kita tampilkan dengan VMD. basal.gro seharusnya menunjukkan susunan heksagonal reguler ketika dilihat dari arah sumbu z.
+確認のため、VMDで表示してみよう。basal.groは、z軸方向から見ると正六角形の配列が見えるはずだ。
 
-## 9. Lampiran
 
-### 9-1 Koneksi VPN
 
-Akses remote ke server komputasi milik Laboratorium Kimia Teoritis Universitas Okayama (Xeon 96 core, IP `192.168.3.220`). Informasi pengaturan akan diberikan secara terpisah.
+## 9. 補遺
 
-Jika Anda tidak dapat terhubung dengan baik, gunakan Amazon EC2.
+### 9-1 VPN接続
 
-#### 9-1-1 Untuk Mac
+岡山大学理論化学研究室所有の計算サーバ(Xeon 96 core, IP `192.168.3.220`)にリモートアクセスします。設定情報は別途お渡しします。
 
-Masukkan pengaturan di System Settings->VPN->Add VPN Configuration.
+うまく接続できない場合は、Amazon EC2を利用します。
+
+#### 9-1-1 Macの場合
+
+System Settings->VPN->Add VPN Configurationで、設定を入力します。
 
 https://www.cc.uec.ac.jp/ug/ja/remote/vpn/l2tp/macos114/index.html
+が参考になります(入力する内容は適宜おきかえて下さい)
 
-mungkin berguna sebagai referensi (silakan ganti konten yang dimasukkan sesuai kebutuhan)
-
-#### 9-1-2 Untuk Windows
+#### 9-1-2 Windowsの場合
 
 https://www.seil.jp/saw-mpc/doc/sa/pppac/use/pppac-client/win11_l2tp.html
+が参考になります(入力する内容は適宜おきかえて下さい)
 
-mungkin berguna sebagai referensi (silakan ganti konten yang dimasukkan sesuai kebutuhan)
+コントロールパネル→ネットワークと共有センター→アダプタの設定変更→VPNを選ぶ→プロパティ→セキュリティ→次のプロトコルを許可する→CHAPにチェック!!! (ふう。なんでこんなに深いの)
 
-Control Panel → Network and Sharing Center → Change adapter settings → Pilih VPN → Properties → Security → Allow these protocols → Centang CHAP!!! (Fuh. Kenapa harus begitu dalam)
+### 9-2 Amazon EC2の個人利用
 
-### 9-2 Penggunaan pribadi Amazon EC2
+Amazon EC2の無料枠でも、そこそこの計算はできます。
 
-Bahkan dengan kuota gratis Amazon EC2, Anda masih bisa melakukan perhitungan yang cukup baik.
+1. AWSにアカウントを作ります。クレジットカード番号が必要になります。
+2. EC2ダッシュボードで、EC2インスタンスを作成します。インスタンスタイプt2.micro (2 cores)までなら、無料で利用できます。
+3. OSにはUbuntuを選びます。(計算プラットホームとして利用するのに適しています)
+4. そのほか、ほとんどの設定はデフォルトのままでいいですが、不明な点は講師にお尋ね下さい。
+### 9-3 Gromacsとその他のツールのインストール
 
-1. Buat akun di AWS. Anda akan membutuhkan nomor kartu kredit.
-2. Di dashboard EC2, buat instans EC2. Anda dapat menggunakan tipe instans t2.micro (2 core) secara gratis.
-3. Pilih Ubuntu untuk OS. (Ini cocok untuk digunakan sebagai platform komputasi)
-4. Sebagian besar pengaturan lainnya bisa dibiarkan default, tapi tanyakan instruktur jika ada yang tidak jelas.
+クラウドを使わなくても、Unix系のOSになら、GromacsやGenIceを簡単にインストールできます。
 
-### 9-3 Instalasi Gromacs dan alat lainnya
 
-Bahkan tanpa menggunakan cloud, Anda dapat dengan mudah menginstal Gromacs dan GenIce di sistem operasi berbasis Unix.
+#### 9-3-1 Ubuntu/Debian Linuxの場合
 
-#### 9-3-1 Untuk Ubuntu/Debian Linux
-
-(Perlu dijalankan dengan hak administrator.)
-
+(管理者権限で実行する必要があります。)
 ```shell
 apt update
 apt install gromacs python3 python3-pip
@@ -579,31 +572,31 @@ pip install numpy
 pip install genice2
 ```
 
-#### 9-3-2 Untuk Redhat/Amazon Linux/CentOS7
+#### 9-3-2 Redhat/Amazon Linux/CentOS7の場合
 
-Paket gromacs tidak ditemukan di EC2 Amazon Linux/RedHat Linux. Sepertinya Anda perlu menginstal yang diperlukan secara individual dari [RPM](https://rpmfind.net/linux/rpm2html/search.php?query=gromacs).
+EC2のAmazon Linux/RedHat Linuxではgromacsパッケージが見付かりませんでした。[RPM](https://rpmfind.net/linux/rpm2html/search.php?query=gromacs)から必要なものを個別にインストールする必要があるようです。
 
-#### 9-3-3 Untuk MacOS
+#### 9-3-3 MacOSの場合
 
-Siapkan Homebrew terlebih dahulu.
+Homebrewをセットアップしておきましょう。
 
-Dengan HomeBrew, Anda dapat menginstal tanpa hak administrator.
-
+HomeBrewでは、管理者権限なしにインストールできます。
 ```shell
 brew install gromacs python3
 pip install genice2
 ```
 
-#### 9-3-4 Untuk Windows
+#### 9-3-4 Windowsの場合
 
-(Informasi dibutuhkan!)
+(情報求む!)
 
-## Referensi
+
+## References
 
 [^1] Conde, M. M., Rovere, M. & Gallo, P. High precision determination of the melting points of water TIP4P/2005 and water TIP4P/Ice models by the direct coexistence technique. J. Chem. Phys. 147, 244506 (2017).
 
 [^2] Yagasaki, T., Matsumoto, M. & Tanaka, H. Spontaneous liquid-liquid phase separation of water. Phys. Rev. E Stat. Nonlin. Soft Matter Phys. 89, 020301 (2014).
 
-[^3] Yeyue Xiong, Parviz Seifpanahi Shabane, and Alexey V. Onufriev\*, Melting Points of OPC and OPC3 Water Models, ACS Omega 39, 25087–25094 (2020).
+[^3] Yeyue Xiong, Parviz Seifpanahi Shabane, and Alexey V. Onufriev*, Melting Points of OPC and OPC3 Water Models, ACS Omega 39, 25087–25094 (2020).
 
 [^4] Espinosa, J. R., Sanz, E., Valeriani, C. & Vega, C. Homogeneous ice nucleation evaluated for several water models. J. Chem. Phys. 141, 18C529 (2014).
