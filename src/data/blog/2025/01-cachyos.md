@@ -215,8 +215,6 @@ php -r "unlink('composer-setup.php');"
 
 ```
 npm install -g @qwen-code/qwen-code@latest
-qwen --version
-
 npm install -g @google/gemini-cli
 ```
 
@@ -230,4 +228,5 @@ Setelah menyelesaikan langkah-langkah di atas, sistem Anda seharusnya sudah memi
 **Tips Tambahan**:
 - Selalu perbarui sistem secara berkala dengan `sudo pacman -Syu`.
 - Cadangkan konfigurasi penting sebelum membuat perubahan besar.
+
 - Untuk bantuan lebih lanjut, kunjungi [Arch Wiki](https://wiki.archlinux.org/) atau forum komunitas Arch Linux.
